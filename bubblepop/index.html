@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🫧 Bubble Pop!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset ─── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* ─── Screens ─── */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.35s;
+}
+.screen.hidden { opacity: 0; pointer-events: none; }
+
+/* ══════════ START SCREEN ══════════ */
+#startScreen {
+  background: linear-gradient(160deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  z-index: 2;
+  padding: 24px;
+  gap: 0;
+}
+
+.title-bubbles {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; margin-bottom: 6px;
+}
+.title-bubble {
+  width: clamp(36px, 8vw, 56px);
+  height: clamp(36px, 8vw, 56px);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(1rem, 3vw, 1.6rem);
+  animation: floatBob var(--dur, 2s) ease-in-out infinite alternate;
+  box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 2px 2px 6px rgba(255,255,255,0.35);
+}
+@keyframes floatBob {
+  0%   { transform: translateY(0px) scale(1); }
+  100% { transform: translateY(-8px) scale(1.06); }
+}
+
+#startScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.4rem, 9vw, 4.8rem);
+  color: #fff;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 40px rgba(100,200,255,0.5);
+  text-align: center;
+  margin-bottom: 6px;
+}
+#startScreen .subtitle {
+  font-size: clamp(0.95rem, 2.8vw, 1.25rem);
+  color: #aad4e8;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 18px;
+}
+.start-hs {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px;
+  padding: 6px 22px;
+  color: #ffd32a;
+  font-weight: 800;
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+
+/* Mode cards */
+.mode-label {
+  font-family: 'Fredoka One', cursive;
+  color: #aad4e8;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+.mode-cards {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.mode-card {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  min-width: 90px;
+}
+.mode-card:hover    { background: rgba(255,255,255,0.16); transform: translateY(-3px); }
+.mode-card.selected { border-color: #48dbfb; background: rgba(72,219,251,0.15); transform: scale(1.05); }
+.mode-icon  { font-size: 1.8rem; margin-bottom: 4px; }
+.mode-name  { font-family: 'Fredoka One', cursive; font-size: 1rem; color: #fff; }
+.mode-desc  { font-size: 0.72rem; color: #aad4e8; margin-top: 2px; }
+
+.play-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  padding: 0.65em 2.5em;
+  background: linear-gradient(135deg, #48dbfb, #0abde3);
+  color: #0a2940;
+  border: none; border-radius: 2em; cursor: pointer;
+  box-shadow: 0 6px 0 #0874a0, 0 0 30px rgba(72,219,251,0.4);
+  transition: all 0.15s;
+}
+.play-btn:hover  { transform: translateY(-4px); box-shadow: 0 10px 0 #0874a0, 0 0 40px rgba(72,219,251,0.5); }
+.play-btn:active { transform: translateY(2px);  box-shadow: 0 3px 0 #0874a0; }
+
+/* ══════════ GAME SCREEN ══════════ */
+#gameScreen {
+  background: linear-gradient(160deg, #0f2027 0%, #203a43 60%, #2c5364 100%);
+  z-index: 2;
+}
+
+/* HUD */
+.hud {
+  width: 100%; max-width: 600px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px 6px;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.hud-block { text-align: center; }
+.hud-val {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.3rem, 4.5vw, 1.9rem);
+  color: #fff;
+  line-height: 1;
+}
+.hud-val.score-val { color: #ffd32a; }
+.hud-val.timer-val { color: #ff6b6b; }
+.hud-lbl {
+  font-size: 0.68rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: #7fb3c8;
+  margin-top: 1px;
+}
+
+/* Timer bar */
+.timer-bar-wrap {
+  width: 100%; max-width: 600px;
+  padding: 0 16px 8px;
+  flex-shrink: 0;
+}
+.timer-bar-bg {
+  height: 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.timer-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+  border-radius: 10px;
+  transition: width 0.25s linear, background 0.5s;
+  width: 100%;
+}
+
+/* Arena */
+.arena-wrap {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  max-width: 600px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Bubble */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  animation: riseUp linear forwards;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+@keyframes riseUp {
+  0%   { bottom: -80px; opacity: 0; transform: translateX(0px) scale(0.4); }
+  8%   { opacity: 1; transform: translateX(0px) scale(1); }
+  92%  { opacity: 1; }
+  100% { bottom: 105%; opacity: 0; transform: translateX(var(--drift)) scale(0.9); }
+}
+
+/* Shine overlay on bubble */
+.bubble::before {
+  content: '';
+  position: absolute;
+  top: 12%; left: 18%;
+  width: 38%; height: 28%;
+  background: rgba(255,255,255,0.45);
+  border-radius: 50%;
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+
+/* Pop burst overlay */
+.pop-burst {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: burst 0.35s ease-out forwards;
+}
+@keyframes burst {
+  0%   { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Score pop text */
+.score-pop {
+  position: absolute;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.4rem;
+  color: #fff;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  pointer-events: none;
+  animation: scoreFloat 0.8s ease-out forwards;
+  z-index: 50;
+}
+@keyframes scoreFloat {
+  0%   { transform: translateY(0) scale(1);    opacity: 1; }
+  100% { transform: translateY(-55px) scale(0.7); opacity: 0; }
+}
+
+/* Miss ripple */
+.miss-ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid rgba(255,107,107,0.7);
+  pointer-events: none;
+  animation: ripple 0.5s ease-out forwards;
+  z-index: 40;
+}
+@keyframes ripple {
+  0%   { transform: scale(0.5); opacity: 1; width: 40px; height: 40px; margin: -20px; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Combo banner */
+.combo-banner {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.8rem, 6vw, 3rem);
+  color: #fff;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 20px rgba(255,200,0,0.7);
+  z-index: 60;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.combo-banner.show {
+  animation: comboPop 0.7s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
+}
+@keyframes comboPop {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  40%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  70%  { transform: translate(-50%, -50%) scale(0.95); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Pause overlay */
+#pauseOverlay {
+  position: absolute; inset: 0;
+  background: rgba(10,25,35,0.88);
+  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 20;
+  gap: 14px;
+  transition: opacity 0.25s;
+}
+#pauseOverlay.hidden { opacity: 0; pointer-events: none; }
+#pauseOverlay h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2rem, 7vw, 3rem);
+  color: #fff;
+}
+.ov-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1rem, 3.5vw, 1.4rem);
+  padding: 0.6em 2em; border: none; border-radius: 2em;
+  cursor: pointer; color: #fff;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.3);
+  transition: all 0.15s;
+}
+.ov-btn:hover  { transform: translateY(-3px); }
+.ov-btn:active { transform: translateY(2px); }
+.ov-btn.cyan   { background: #0abde3; }
+.ov-btn.red    { background: #e74c3c; }
+
+/* Pause button */
+.pause-btn {
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  color: #fff; font-size: 1.1rem;
+  width: 40px; height: 40px; border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.pause-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* ══════════ END SCREEN ══════════ */
+#endScreen {
+  background: linear-gradient(160deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  z-index: 3;
+  padding: 24px;
+  gap: 10px;
+}
+#endScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.2rem, 8vw, 4rem);
+  text-align: center;
+}
+.end-emoji { font-size: clamp(3rem, 10vw, 5rem); }
+.end-score-big {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.5rem, 5vw, 2.4rem);
+  color: #ffd32a;
+}
+.end-stats {
+  display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+}
+.end-stat {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  padding: 10px 20px;
+  text-align: center;
+}
+.end-stat-val { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: #48dbfb; }
+.end-stat-lbl { font-size: 0.72rem; color: #7fb3c8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 2px; }
+.new-hs {
+  background: linear-gradient(135deg, #feca57, #ff9ff3);
+  color: #1a1a2e;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1rem; padding: 5px 18px; border-radius: 50px;
+  display: none;
+}
+.end-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.end-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1rem, 3.5vw, 1.3rem);
+  padding: 0.6em 1.8em; border: none; border-radius: 2em;
+  cursor: pointer; color: #fff;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.3);
+  transition: all 0.15s;
+}
+.end-btn:hover  { transform: translateY(-3px); }
+.end-btn:active { transform: translateY(2px); }
+.end-btn.cyan   { background: #0abde3; }
+.end-btn.yellow { background: #f39c12; }
+
+/* ─── Back button ─── */
+.back-btn {
+  position: fixed; top: 14px; left: 14px; z-index: 100;
+  background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50px; color: #fff;
+  font-size: 0.9rem; font-weight: 700; font-family: 'Nunito', sans-serif;
+  padding: 7px 14px 7px 10px; cursor: pointer;
+  text-decoration: none; display: flex; align-items: center; gap: 6px;
+  backdrop-filter: blur(4px); transition: background 0.2s;
+}
+.back-btn:hover { background: rgba(0,0,0,0.7); }
+
+/* ─── Confetti ─── */
+.confetti-piece {
+  position: fixed; border-radius: 2px;
+  animation: cfFall linear forwards;
+  z-index: 999; pointer-events: none;
+}
+@keyframes cfFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+
+/* ─── Floating bubbles background ─── */
+.bg-bubble {
+  position: fixed; border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  pointer-events: none;
+  animation: bgFloat linear infinite;
+}
+@keyframes bgFloat {
+  0%   { transform: translateY(110vh); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(-20vh); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<a class="back-btn" href="../index.html">← Arcade</a>
+
+<!-- ══════════ START SCREEN ══════════ -->
+<div class="screen" id="startScreen">
+  <div class="title-bubbles" id="titleBubbles"></div>
+  <h1>Bubble Pop! 🫧</h1>
+  <p class="subtitle">Tap every bubble before it floats away!</p>
+  <div class="start-hs" id="startHs">🏆 Best: 0</div>
+
+  <div class="mode-label">Pick a Mode:</div>
+  <div class="mode-cards">
+    <div class="mode-card selected" data-mode="easy">
+      <div class="mode-icon">😊</div>
+      <div class="mode-name">Easy</div>
+      <div class="mode-desc">60 sec · Slow</div>
+    </div>
+    <div class="mode-card" data-mode="medium">
+      <div class="mode-icon">😄</div>
+      <div class="mode-name">Medium</div>
+      <div class="mode-desc">45 sec · Faster</div>
+    </div>
+    <div class="mode-card" data-mode="hard">
+      <div class="mode-icon">🤩</div>
+      <div class="mode-name">Hard</div>
+      <div class="mode-desc">30 sec · Speedy!</div>
+    </div>
+  </div>
+
+  <button class="play-btn" id="playBtn">Pop! Pop! Pop! 💥</button>
+</div>
+
+<!-- ══════════ GAME SCREEN ══════════ -->
+<div class="screen hidden" id="gameScreen">
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-block">
+      <div class="hud-val score-val" id="scoreVal">0</div>
+      <div class="hud-lbl">Score</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val timer-val" id="timerVal">60</div>
+      <div class="hud-lbl">Seconds</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" id="comboVal" style="color:#ff9ff3">×1</div>
+      <div class="hud-lbl">Combo</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" id="poppedVal" style="color:#1dd1a1">0</div>
+      <div class="hud-lbl">Popped</div>
+    </div>
+    <button class="pause-btn" id="pauseBtn">⏸</button>
+  </div>
+
+  <!-- Timer bar -->
+  <div class="timer-bar-wrap">
+    <div class="timer-bar-bg">
+      <div class="timer-bar-fill" id="timerBar"></div>
+    </div>
+  </div>
+
+  <!-- Arena -->
+  <div class="arena-wrap" id="arena">
+    <div class="combo-banner" id="comboBanner">COMBO! 🔥</div>
+    <!-- Pause overlay -->
+    <div id="pauseOverlay" class="hidden">
+      <h2>⏸ Paused</h2>
+      <button class="ov-btn cyan" id="resumeBtn">▶ Resume</button>
+      <button class="ov-btn red"  id="quitBtn">🏠 Quit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ END SCREEN ══════════ -->
+<div class="screen hidden" id="endScreen">
+  <div class="end-emoji" id="endEmoji">🎉</div>
+  <h1 id="endTitle" style="color:#48dbfb">Time's Up!</h1>
+  <div class="end-score-big" id="endScoreBig">Score: 0</div>
+  <div class="new-hs" id="newHsBadge">🌟 New High Score! 🌟</div>
+  <div class="end-stats">
+    <div class="end-stat">
+      <div class="end-stat-val" id="endPopped">0</div>
+      <div class="end-stat-lbl">Bubbles Popped</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endMissed">0</div>
+      <div class="end-stat-lbl">Missed</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endBestCombo">×1</div>
+      <div class="end-stat-lbl">Best Combo</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endBest">0</div>
+      <div class="end-stat-lbl">All-Time Best</div>
+    </div>
+  </div>
+  <div class="end-btns">
+    <button class="end-btn cyan"   id="playAgainBtn">🔄 Play Again</button>
+    <button class="end-btn yellow" id="menuBtn">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  BUBBLE POP — Game Logic
+// ═══════════════════════════════════════════════════
+
+// ─── Mode configs ────────────────────────────────
+const MODES = {
+  easy:   { time: 60, spawnMs: 900,  riseMs: [4200, 6500], maxBubbles: 12, basePoints: 10 },
+  medium: { time: 45, spawnMs: 650,  riseMs: [3000, 5000], maxBubbles: 15, basePoints: 15 },
+  hard:   { time: 30, spawnMs: 420,  riseMs: [2000, 3500], maxBubbles: 18, basePoints: 20 },
+};
+
+// ─── Bubble colours (gradient pairs) ─────────────
+const BUBBLE_THEMES = [
+  { from:'#ff6b6b', to:'#ee5a24', glow:'rgba(255,107,107,0.55)' },
+  { from:'#feca57', to:'#ff9f43', glow:'rgba(254,202,87,0.55)'  },
+  { from:'#48dbfb', to:'#0abde3', glow:'rgba(72,219,251,0.55)'  },
+  { from:'#ff9ff3', to:'#f368e0', glow:'rgba(255,159,243,0.55)' },
+  { from:'#54a0ff', to:'#2e86de', glow:'rgba(84,160,255,0.55)'  },
+  { from:'#1dd1a1', to:'#10ac84', glow:'rgba(29,209,161,0.55)'  },
+  { from:'#ffeaa7', to:'#fdcb6e', glow:'rgba(255,234,167,0.55)' },
+  { from:'#a29bfe', to:'#6c5ce7', glow:'rgba(162,155,254,0.55)' },
+];
+
+// Fun emojis inside bubbles
+const EMOJIS = ['⭐','🌈','💎','🦄','🌺','🎈','🍭','🦋','🌟','💫','🎀','🎵','🍦','🦊','🐬','🌸'];
+
+// Combo thresholds & labels
+const COMBO_MSGS = [
+  { at: 3,  msg: '3 in a row! 🔥',   color: '#feca57' },
+  { at: 5,  msg: 'On Fire! 🔥🔥',    color: '#ff9f43' },
+  { at: 8,  msg: 'AMAZING! 🌟',      color: '#ff6b6b' },
+  { at: 12, msg: 'LEGENDARY! 👑',    color: '#ff9ff3' },
+];
+
+// ─── State ───────────────────────────────────────
+let score, timeLeft, popped, missed, combo, bestCombo;
+let highScores = {};
+let currentMode = 'easy';
+let spawnTimer, countdownTimer;
+let paused = false;
+let gameActive = false;
+let activeBubbles = [];   // {el, id}
+let bubbleIdCounter = 0;
+let comboTimeout;
+let totalTime;
+
+// ─── Helpers ─────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+// ─── High scores ─────────────────────────────────
+function loadHS() {
+  try { highScores = JSON.parse(localStorage.getItem('bubblepop_hs') || '{}'); } catch(e){ highScores={}; }
+  updateStartHs();
+}
+function saveHS(mode, s) {
+  const prev = highScores[mode] || 0;
+  if (s > prev) { highScores[mode] = s; localStorage.setItem('bubblepop_hs', JSON.stringify(highScores)); return true; }
+  return false;
+}
+function updateStartHs() {
+  const best = Object.values(highScores).reduce((a,b) => Math.max(a,b), 0);
+  $('startHs').textContent = '🏆 Best: ' + best;
+}
+
+// ─── Screen management ───────────────────────────
+function showScreen(id) {
+  ['startScreen','gameScreen','endScreen'].forEach(s => {
+    $(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+// ─── Sound ───────────────────────────────────────
+let audioCtx;
+function ac() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playPop(theme_idx) {
+  try {
+    const ctx = ac();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    const freqs = [523,587,659,698,784,880,988,1047];
+    osc.frequency.setValueAtTime(freqs[theme_idx % freqs.length], ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freqs[theme_idx % freqs.length]*1.5, ctx.currentTime+0.08);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.18);
+    osc.start(); osc.stop(ctx.currentTime+0.18);
+  } catch(e) {}
+}
+function playComboSound() {
+  try {
+    const ctx = ac();
+    [0,0.09,0.18].forEach((t,i) => {
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=[784,988,1175][i];
+      g.gain.setValueAtTime(0.15, ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t+0.2);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.22);
+    });
+  } catch(e) {}
+}
+function playEndSound() {
+  try {
+    const ctx = ac();
+    [523,659,784,1047].forEach((f,i) => {
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=f;
+      g.gain.setValueAtTime(0.15, ctx.currentTime+i*0.13);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.13+0.28);
+      o.start(ctx.currentTime+i*0.13); o.stop(ctx.currentTime+i*0.13+0.3);
+    });
+  } catch(e) {}
+}
+
+// ─── Start game ──────────────────────────────────
+function startGame() {
+  const cfg = MODES[currentMode];
+  score = 0; timeLeft = cfg.time; totalTime = cfg.time;
+  popped = 0; missed = 0; combo = 0; bestCombo = 0;
+  paused = false; gameActive = true;
+  activeBubbles = [];
+  bubbleIdCounter = 0;
+
+  // Clear arena of old bubbles
+  const arena = $('arena');
+  arena.querySelectorAll('.bubble,.pop-burst,.score-pop,.miss-ripple').forEach(e=>e.remove());
+  $('pauseOverlay').classList.add('hidden');
+  $('comboBanner').classList.remove('show');
+
+  updateHUD();
+  $('timerBar').style.width = '100%';
+  showScreen('gameScreen');
+
+  spawnTimer    = setInterval(spawnBubble, cfg.spawnMs);
+  countdownTimer = setInterval(tick, 1000);
+}
+
+// ─── Tick (countdown) ────────────────────────────
+function tick() {
+  if (paused || !gameActive) return;
+  timeLeft--;
+  updateHUD();
+  const pct = (timeLeft / totalTime) * 100;
+  $('timerBar').style.width = pct + '%';
+  if (pct < 30) $('timerBar').style.background = 'linear-gradient(90deg,#ff6b6b,#ee5a24)';
+  else if (pct < 60) $('timerBar').style.background = 'linear-gradient(90deg,#ff6b6b,#feca57)';
+  else $('timerBar').style.background = 'linear-gradient(90deg,#ff6b6b,#feca57,#48dbfb)';
+
+  if (timeLeft <= 0) endGame();
+}
+
+// ─── HUD update ──────────────────────────────────
+function updateHUD() {
+  $('scoreVal').textContent  = score;
+  $('timerVal').textContent  = timeLeft;
+  $('comboVal').textContent  = '×' + (combo + 1);
+  $('poppedVal').textContent = popped;
+}
+
+// ─── Spawn bubble ────────────────────────────────
+function spawnBubble() {
+  if (paused || !gameActive) return;
+  if (activeBubbles.length >= MODES[currentMode].maxBubbles) return;
+
+  const arena = $('arena');
+  const aW = arena.clientWidth, aH = arena.clientHeight;
+  const cfg = MODES[currentMode];
+  const themeIdx = Math.floor(Math.random() * BUBBLE_THEMES.length);
+  const theme = BUBBLE_THEMES[themeIdx];
+  const size  = Math.floor(rand(48, 82));
+  const riseMs = Math.floor(rand(...cfg.riseMs));
+  const drift  = rand(-60, 60);
+  const leftPct = rand(2, 95 - (size / aW * 100));
+  const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+  const id = bubbleIdCounter++;
+
+  const el = document.createElement('div');
+  el.className = 'bubble';
+  el.dataset.id = id;
+  el.dataset.theme = themeIdx;
+  el.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${leftPct}%;
+    font-size:${size * 0.42}px;
+    background: radial-gradient(circle at 35% 35%, ${theme.from}, ${theme.to});
+    box-shadow: 0 0 ${size*0.3}px ${theme.glow}, inset 0 0 ${size*0.15}px rgba(255,255,255,0.2);
+    animation-duration: ${riseMs}ms;
+    --drift: ${drift}px;
+  `;
+  el.textContent = emoji;
+
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); popBubble(el, id, themeIdx, theme); });
+
+  arena.appendChild(el);
+  activeBubbles.push({ el, id });
+
+  // Remove when animation ends (missed)
+  el.addEventListener('animationend', () => {
+    if (el.parentNode) {
+      missedBubble(el, id);
+    }
+  });
+}
+
+// ─── Pop bubble ──────────────────────────────────
+function popBubble(el, id, themeIdx, theme) {
+  if (!gameActive || paused) return;
+  if (!el.parentNode) return;
+
+  const rect = el.getBoundingClientRect();
+  const arenaRect = $('arena').getBoundingClientRect();
+  const cx = rect.left - arenaRect.left + rect.width/2;
+  const cy = rect.top  - arenaRect.top  + rect.height/2;
+  const sz = rect.width;
+
+  // Remove from active list
+  activeBubbles = activeBubbles.filter(b => b.id !== id);
+  el.remove();
+
+  // Burst visual
+  const burst = document.createElement('div');
+  burst.className = 'pop-burst';
+  burst.style.cssText = `
+    left:${cx}px; top:${cy}px;
+    width:${sz}px; height:${sz}px;
+    margin-left:${-sz/2}px; margin-top:${-sz/2}px;
+    background: radial-gradient(circle, ${theme.from}88, ${theme.to}22);
+  `;
+  $('arena').appendChild(burst);
+  burst.addEventListener('animationend', () => burst.remove());
+
+  // Combo
+  combo++;
+  if (combo > bestCombo) bestCombo = combo;
+  clearTimeout(comboTimeout);
+  comboTimeout = setTimeout(() => { combo = 0; updateHUD(); }, 1500);
+
+  // Points
+  const multiplier = Math.min(combo, 5);
+  const pts = MODES[currentMode].basePoints * multiplier;
+  score += pts;
+  popped++;
+
+  // Score pop text
+  const sp = document.createElement('div');
+  sp.className = 'score-pop';
+  sp.style.left = cx + 'px'; sp.style.top = (cy - sz/2) + 'px';
+  sp.style.color = theme.from;
+  sp.textContent = (multiplier > 1 ? '×'+multiplier+' ' : '') + '+' + pts;
+  $('arena').appendChild(sp);
+  sp.addEventListener('animationend', () => sp.remove());
+
+  // Combo banner
+  COMBO_MSGS.forEach(cm => {
+    if (combo === cm.at) {
+      const banner = $('comboBanner');
+      banner.textContent = cm.msg;
+      banner.style.color = cm.color;
+      banner.classList.remove('show');
+      void banner.offsetWidth; // reflow
+      banner.classList.add('show');
+      playComboSound();
+    }
+  });
+
+  playPop(themeIdx);
+  updateHUD();
+}
+
+// ─── Missed bubble ───────────────────────────────
+function missedBubble(el, id) {
+  activeBubbles = activeBubbles.filter(b => b.id !== id);
+  el.remove();
+  missed++;
+  combo = 0;
+  updateHUD();
+}
+
+// ─── Arena miss-click ─────────────────────────────
+$('arena').addEventListener('pointerdown', e => {
+  if (e.target !== $('arena')) return;
+  const arenaRect = $('arena').getBoundingClientRect();
+  const x = e.clientX - arenaRect.left;
+  const y = e.clientY - arenaRect.top;
+  const rp = document.createElement('div');
+  rp.className = 'miss-ripple';
+  rp.style.left = x + 'px'; rp.style.top = y + 'px';
+  $('arena').appendChild(rp);
+  rp.addEventListener('animationend', () => rp.remove());
+});
+
+// ─── End game ────────────────────────────────────
+function endGame() {
+  gameActive = false;
+  clearInterval(spawnTimer);
+  clearInterval(countdownTimer);
+
+  // Pop remaining bubbles visually
+  activeBubbles.forEach(b => { if(b.el.parentNode) b.el.remove(); });
+  activeBubbles = [];
+
+  const isNew = saveHS(currentMode, score);
+  loadHS();
+
+  $('endScoreBig').textContent  = 'Score: ' + score;
+  $('endPopped').textContent    = popped;
+  $('endMissed').textContent    = missed;
+  $('endBestCombo').textContent = '×' + bestCombo;
+  $('endBest').textContent      = highScores[currentMode] || score;
+  $('newHsBadge').style.display = isNew ? 'block' : 'none';
+
+  const pct = popped / Math.max(popped + missed, 1);
+  if (pct > 0.85 && score > 0) {
+    $('endTitle').textContent = 'Incredible! 🌟'; $('endTitle').style.color='#feca57';
+    $('endEmoji').textContent = '🏆';
+    confetti();
+  } else if (pct > 0.6) {
+    $('endTitle').textContent = 'Great Job! 🎉'; $('endTitle').style.color='#48dbfb';
+    $('endEmoji').textContent = '🎉';
+    confetti();
+  } else {
+    $('endTitle').textContent = 'Keep Trying! 💪'; $('endTitle').style.color='#ff9ff3';
+    $('endEmoji').textContent = '🫧';
+  }
+
+  playEndSound();
+  showScreen('endScreen');
+}
+
+// ─── Pause ───────────────────────────────────────
+function togglePause() {
+  if (!gameActive) return;
+  paused = !paused;
+  $('pauseOverlay').classList.toggle('hidden', !paused);
+  $('pauseBtn').textContent = paused ? '▶' : '⏸';
+}
+$('pauseBtn').addEventListener('click', togglePause);
+$('resumeBtn').addEventListener('click', togglePause);
+$('quitBtn').addEventListener('click', () => {
+  gameActive = false;
+  clearInterval(spawnTimer); clearInterval(countdownTimer);
+  showScreen('startScreen'); loadHS();
+});
+
+// ─── Mode selection ──────────────────────────────
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    currentMode = card.dataset.mode;
+  });
+});
+
+// ─── Buttons ─────────────────────────────────────
+$('playBtn').addEventListener('click', startGame);
+$('playAgainBtn').addEventListener('click', startGame);
+$('menuBtn').addEventListener('click', () => { showScreen('startScreen'); loadHS(); });
+
+// ─── Confetti ────────────────────────────────────
+function confetti() {
+  const colors = ['#feca57','#ff6b6b','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe','#54a0ff'];
+  for (let i = 0; i < 90; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left:${Math.random()*100}vw;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${1.4+Math.random()*2}s;
+      animation-delay:${Math.random()*0.8}s;
+      width:${6+Math.random()*9}px; height:${6+Math.random()*9}px;
+      border-radius:${Math.random()>0.5?'50%':'3px'};
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// ─── Background floating bubbles ─────────────────
+for (let i = 0; i < 18; i++) {
+  const el = document.createElement('div');
+  el.className = 'bg-bubble';
+  const sz = 20 + Math.random() * 70;
+  el.style.cssText = `
+    width:${sz}px; height:${sz}px;
+    left:${Math.random()*100}vw;
+    animation-duration:${8+Math.random()*14}s;
+    animation-delay:${-Math.random()*14}s;
+  `;
+  document.body.appendChild(el);
+}
+
+// ─── Title screen bubble icons ───────────────────
+const titleColors = [
+  {from:'#ff6b6b',to:'#ee5a24'},{from:'#feca57',to:'#ff9f43'},
+  {from:'#48dbfb',to:'#0abde3'},{from:'#ff9ff3',to:'#f368e0'},
+  {from:'#1dd1a1',to:'#10ac84'},
+];
+const titleEmoji = ['🫧','💥','⭐','🌈','🎈'];
+const tb = $('titleBubbles');
+titleColors.forEach((t, i) => {
+  const el = document.createElement('div');
+  el.className = 'title-bubble';
+  el.textContent = titleEmoji[i];
+  el.style.cssText = `
+    background: radial-gradient(circle at 35% 35%, ${t.from}, ${t.to});
+    box-shadow: 0 0 18px ${t.from}88;
+    --dur:${1.6 + i*0.3}s;
+    animation-delay:${i*0.15}s;
+  `;
+  tb.appendChild(el);
+});
+
+// ─── Init ────────────────────────────────────────
+loadHS();
+</script>
+</body>
+</html>
