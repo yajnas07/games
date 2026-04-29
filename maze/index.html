@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🐭 Maze Adventure!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Base ─── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  background: #b8f0ff;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* ─── Screens ─── */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.4s;
+  pointer-events: auto;
+}
+.screen.hidden { opacity: 0; pointer-events: none; }
+
+/* ─── Start Screen ─── */
+#startScreen {
+  background: linear-gradient(135deg, #ffe066 0%, #ffb347 50%, #ff6f91 100%);
+}
+#startScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2rem, 8vw, 4rem);
+  color: #fff;
+  text-shadow: 3px 3px 0 #d35400, 0 0 20px rgba(255,255,255,0.5);
+  margin-bottom: 0.2em;
+}
+#startScreen .subtitle {
+  font-size: clamp(1rem, 3vw, 1.4rem);
+  color: #6b3300;
+  margin-bottom: 1.5em;
+}
+
+/* Character picker */
+.char-picker { display: flex; gap: 1em; margin-bottom: 1.5em; }
+.char-btn {
+  font-size: clamp(1rem, 3vw, 1.3rem);
+  padding: 0.6em 1.2em;
+  border: 4px solid transparent;
+  border-radius: 1em;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 0 #ccc;
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+}
+.char-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #ccc; }
+.char-btn.selected { border-color: #e74c3c; background: #fff3e0; transform: scale(1.05); }
+
+/* Difficulty buttons */
+.diff-buttons { display: flex; gap: 0.8em; flex-wrap: wrap; justify-content: center; }
+.diff-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1rem, 3.5vw, 1.5rem);
+  padding: 0.6em 1.6em;
+  border: none; border-radius: 2em;
+  color: #fff; cursor: pointer;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+  transition: all 0.15s;
+}
+.diff-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 0 rgba(0,0,0,0.2); }
+.diff-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+.diff-btn.easy   { background: #2ecc71; }
+.diff-btn.medium { background: #f39c12; }
+.diff-btn.hard   { background: #e74c3c; }
+
+/* ─── Game Screen ─── */
+#gameScreen { background: #e8f8ff; }
+.game-hud {
+  width: 100%; padding: 0.4em 1em;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+  color: #2c3e50;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(4px);
+  position: absolute; top: 0; left: 0; z-index: 10;
+}
+#hintBtn, #backBtn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  padding: 0.3em 0.9em; border: none; border-radius: 1em;
+  cursor: pointer; color: #fff;
+}
+#hintBtn { background: #9b59b6; }
+#backBtn { background: #e67e22; }
+canvas#mazeCanvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* Drag hint label */
+.drag-hint {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  color: rgba(44,62,80,0.55);
+  pointer-events: none;
+  white-space: nowrap;
+}
+canvas#mazeCanvas { cursor: grab; }
+canvas#mazeCanvas:active { cursor: grabbing; }
+
+/* ─── Win Screen ─── */
+#winScreen {
+  background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%);
+}
+#winScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2rem, 9vw, 4.5rem);
+  color: #fff;
+  text-shadow: 3px 3px 0 #2e7d32;
+  animation: bounce 0.6s ease infinite alternate;
+}
+@keyframes bounce { to { transform: translateY(-12px); } }
+#winScreen .win-time {
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  color: #1b5e20; margin: 0.5em 0 1.5em;
+}
+#winScreen .win-btns { display: flex; gap: 0.8em; flex-wrap: wrap; justify-content: center; }
+
+/* Confetti */
+.confetti-piece {
+  position: fixed; width: 10px; height: 10px;
+  border-radius: 2px; z-index: 100;
+  animation: confettiFall 2.5s ease-in forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ START SCREEN ════════ -->
+<div id="startScreen" class="screen">
+  <h1>🐭 Maze Adventure!</h1>
+  <div class="subtitle">Help your friend find the yummy treat!</div>
+
+  <div class="char-picker">
+    <button class="char-btn selected" data-char="mouse" onclick="pickChar('mouse',this)">🐭 Mouse → 🧀</button>
+    <button class="char-btn" data-char="cat" onclick="pickChar('cat',this)">🐱 Cat → 🥛</button>
+  </div>
+
+  <div class="char-picker" style="margin-bottom: 1.5em;">
+    <button class="char-btn selected" data-shape="rect" onclick="pickShape('rect',this)">▢ Square Maze</button>
+    <button class="char-btn" data-shape="circle" onclick="pickShape('circle',this)">◉ Circular Maze</button>
+  </div>
+
+  <div class="diff-buttons">
+    <button class="diff-btn easy"   onclick="startGame('easy')">Easy</button>
+    <button class="diff-btn medium" onclick="startGame('medium')">Medium</button>
+    <button class="diff-btn hard"   onclick="startGame('hard')">Hard</button>
+  </div>
+</div>
+
+<!-- ════════ GAME SCREEN ════════ -->
+<div id="gameScreen" class="screen hidden">
+  <div class="game-hud">
+    <button id="backBtn" onclick="showScreen('startScreen')">← Back</button>
+    <span id="timerDisplay">⏱ 0s</span>
+    <span id="moveDisplay">👣 0</span>
+    <button id="hintBtn" onclick="showHint()">💡 Hint</button>
+  </div>
+  <canvas id="mazeCanvas"></canvas>
+  <div class="drag-hint">🖱️ Drag or use Arrow Keys to move</div>
+</div>
+
+<!-- ════════ WIN SCREEN ════════ -->
+<div id="winScreen" class="screen hidden">
+  <h1>🎉 You Did It! 🎉</h1>
+  <div class="win-time" id="winStats"></div>
+  <div class="win-btns">
+    <button class="diff-btn easy"   onclick="startGame(lastDiff)">Play Again</button>
+    <button class="diff-btn medium" onclick="showScreen('startScreen')">New Game</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   GAME STATE
+   ═══════════════════════════════════════════ */
+let maze = [], cols = 0, rows = 0, cellSize = 0;
+let playerX = 0, playerY = 0;
+let goalX = 0, goalY = 0;
+let character = 'mouse';       // 'mouse' | 'cat'
+let mazeShape = 'rect';        // 'rect' | 'circle'
+let lastDiff = 'easy';
+let moveCount = 0, startTime = 0, timerInterval = null;
+let hintPath = [];
+let showingHint = false;
+let animFrame = null;
+let playerPixelX = 0, playerPixelY = 0; // for smooth animation
+const canvas = document.getElementById('mazeCanvas');
+const ctx = canvas.getContext('2d');
+
+const DIFFICULTIES = {
+  easy:   { cols: 8,  rows: 8  },
+  medium: { cols: 12, rows: 12 },
+  hard:   { cols: 18, rows: 14 }
+};
+
+const WALL_COLORS = ['#ff6b6b','#feca57','#48dbfb','#ff9ff3','#54a0ff','#5f27cd'];
+const PATH_COLOR  = '#fffdf7';
+const VISITED_COLOR = '#e8f5e9';
+
+/* ═══════════════════════════════════════════
+   SCREEN MANAGEMENT
+   ═══════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id !== 'gameScreen') { clearInterval(timerInterval); cancelAnimationFrame(animFrame); }
+}
+
+function pickChar(c, btn) {
+  character = c;
+  document.querySelectorAll('[data-char]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function pickShape(s, btn) {
+  mazeShape = s;
+  document.querySelectorAll('[data-shape]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+/* ═══════════════════════════════════════════
+   MAZE GENERATION  — Recursive Backtracker (DFS)
+   ═══════════════════════════════════════════ */
+function generateMaze(c, r) {
+  cols = c; rows = r;
+  // Each cell: { top, right, bottom, left, visited }
+  maze = Array.from({ length: r }, (_, y) =>
+    Array.from({ length: c }, (_, x) => ({
+      top: true, right: true, bottom: true, left: true, visited: false
+    }))
+  );
+
+  const stack = [];
+  let cx = 0, cy = 0;
+  maze[cy][cx].visited = true;
+  stack.push([cx, cy]);
+
+  while (stack.length) {
+    const neighbors = [];
+    const dirs = [[0,-1,'top','bottom'],[1,0,'right','left'],[0,1,'bottom','top'],[-1,0,'left','right']];
+    for (const [dx, dy, wall, opp] of dirs) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx >= 0 && nx < c && ny >= 0 && ny < r && !maze[ny][nx].visited) {
+        neighbors.push([nx, ny, wall, opp]);
+      }
+    }
+    if (neighbors.length) {
+      const [nx, ny, wall, opp] = neighbors[Math.random() * neighbors.length | 0];
+      maze[cy][cx][wall] = false;
+      maze[ny][nx][opp] = false;
+      maze[ny][nx].visited = true;
+      stack.push([cx, cy]);
+      cx = nx; cy = ny;
+    } else {
+      [cx, cy] = stack.pop();
+    }
+  }
+}
+
+function generateCircularMaze(rings, sectors) {
+  // Polar maze: rings (radial layers) × sectors (angular divisions)
+  rows = rings; cols = sectors;
+  maze = Array.from({ length: rings }, (_, r) =>
+    Array.from({ length: sectors }, (_, s) => ({
+      inner: r === 0,        // innermost ring has no inner wall
+      outer: true,           // wall to next ring outward
+      ccw: true,             // counter-clockwise wall
+      cw: true,              // clockwise wall
+      visited: false
+    }))
+  );
+
+  const stack = [];
+  let cr = 0, cs = 0;  // current ring, sector
+  maze[cr][cs].visited = true;
+  stack.push([cr, cs]);
+
+  while (stack.length) {
+    const neighbors = [];
+    
+    // Inner (toward center)
+    if (cr > 0 && !maze[cr - 1][cs].visited) {
+      neighbors.push([cr - 1, cs, 'inner', 'outer']);
+    }
+    // Outer (away from center)
+    if (cr < rings - 1 && !maze[cr + 1][cs].visited) {
+      neighbors.push([cr + 1, cs, 'outer', 'inner']);
+    }
+    // Counter-clockwise
+    const ccwS = (cs - 1 + sectors) % sectors;
+    if (!maze[cr][ccwS].visited) {
+      neighbors.push([cr, ccwS, 'ccw', 'cw']);
+    }
+    // Clockwise
+    const cwS = (cs + 1) % sectors;
+    if (!maze[cr][cwS].visited) {
+      neighbors.push([cr, cwS, 'cw', 'ccw']);
+    }
+
+    if (neighbors.length) {
+      const [nr, ns, wall, opp] = neighbors[Math.random() * neighbors.length | 0];
+      maze[cr][cs][wall] = false;
+      maze[nr][ns][opp] = false;
+      maze[nr][ns].visited = true;
+      stack.push([cr, cs]);
+      cr = nr; cs = ns;
+    } else {
+      [cr, cs] = stack.pop();
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════
+   SOLVE (BFS) — for hint
+   ═══════════════════════════════════════════ */
+function solveMaze(sx, sy, ex, ey) {
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const parent = Array.from({ length: rows }, () => Array(cols).fill(null));
+  const queue = [[sx, sy]];
+  visited[sy][sx] = true;
+  
+  const dirs = mazeShape === 'rect' 
+    ? [[0,-1,'top'],[1,0,'right'],[0,1,'bottom'],[-1,0,'left']]
+    : null;  // circular handled separately
+
+  while (queue.length) {
+    const [cx, cy] = queue.shift();
+    if (cx === ex && cy === ey) {
+      // reconstruct
+      const path = [];
+      let px = ex, py = ey;
+      while (px !== null) {
+        path.unshift([px, py]);
+        const p = parent[py][px];
+        if (!p) break;
+        px = p[0]; py = p[1];
+      }
+      return path;
+    }
+    
+    if (mazeShape === 'rect') {
+      for (const [dx, dy, wall] of dirs) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[ny][nx] && !maze[cy][cx][wall]) {
+          visited[ny][nx] = true;
+          parent[ny][nx] = [cx, cy];
+          queue.push([nx, ny]);
+        }
+      }
+    } else {
+      // Circular: cy = ring, cx = sector
+      const cell = maze[cy][cx];
+      // Inner
+      if (cy > 0 && !cell.inner && !visited[cy - 1][cx]) {
+        visited[cy - 1][cx] = true;
+        parent[cy - 1][cx] = [cx, cy];
+        queue.push([cx, cy - 1]);
+      }
+      // Outer
+      if (cy < rows - 1 && !cell.outer && !visited[cy + 1][cx]) {
+        visited[cy + 1][cx] = true;
+        parent[cy + 1][cx] = [cx, cy];
+        queue.push([cx, cy + 1]);
+      }
+      // CCW
+      const ccwS = (cx - 1 + cols) % cols;
+      if (!cell.ccw && !visited[cy][ccwS]) {
+        visited[cy][ccwS] = true;
+        parent[cy][ccwS] = [cx, cy];
+        queue.push([ccwS, cy]);
+      }
+      // CW
+      const cwS = (cx + 1) % cols;
+      if (!cell.cw && !visited[cy][cwS]) {
+        visited[cy][cwS] = true;
+        parent[cy][cwS] = [cx, cy];
+        queue.push([cwS, cy]);
+      }
+    }
+  }
+  return [];
+}
+
+/* ═══════════════════════════════════════════
+   DRAWING
+   ═══════════════════════════════════════════ */
+function resizeCanvas() {
+  const hud = 48;
+  const dpadSpace = ('ontouchstart' in window || navigator.maxTouchPoints) ? 180 : 0;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - hud - dpadSpace;
+  
+  if (mazeShape === 'rect') {
+    cellSize = Math.floor(Math.min(maxW / cols, maxH / rows));
+    if (cellSize < 16) cellSize = 16;
+    canvas.width = cols * cellSize;
+    canvas.height = rows * cellSize;
+    canvas.style.marginTop = hud + 'px';
+    // smooth pixel positions
+    playerPixelX = playerX * cellSize;
+    playerPixelY = playerY * cellSize;
+  } else {
+    // Circular: canvas is square
+    const size = Math.min(maxW, maxH);
+    canvas.width = size;
+    canvas.height = size;
+    canvas.style.marginTop = hud + 'px';
+    cellSize = (size / 2 - 20) / rows;  // ringWidth
+    // In circular mode, playerPixelX = sector * ringWidth, playerPixelY = ring * ringWidth
+    playerPixelX = playerX * cellSize;
+    playerPixelY = playerY * cellSize;
+  }
+}
+
+function drawMaze() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (mazeShape === 'rect') {
+    drawRectangularMaze();
+  } else {
+    drawCircularMaze();
+  }
+}
+
+function drawRectangularMaze() {
+  // Fill cells
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      ctx.fillStyle = PATH_COLOR;
+      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    }
+  }
+
+  // Draw visited trail
+  if (playerTrail.length) {
+    for (const [tx, ty] of playerTrail) {
+      ctx.fillStyle = VISITED_COLOR;
+      ctx.fillRect(tx * cellSize + 2, ty * cellSize + 2, cellSize - 4, cellSize - 4);
+    }
+  }
+
+  // Hint path
+  if (showingHint && hintPath.length > 1) {
+    ctx.strokeStyle = '#a29bfe';
+    ctx.lineWidth = cellSize * 0.2;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(hintPath[0][0] * cellSize + cellSize / 2, hintPath[0][1] * cellSize + cellSize / 2);
+    for (let i = 1; i < hintPath.length; i++) {
+      ctx.lineTo(hintPath[i][0] * cellSize + cellSize / 2, hintPath[i][1] * cellSize + cellSize / 2);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw walls
+  const wallW = Math.max(2, cellSize * 0.1);
+  ctx.lineCap = 'round';
+  ctx.lineWidth = wallW;
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const cell = maze[y][x];
+      const px = x * cellSize, py = y * cellSize;
+      ctx.strokeStyle = WALL_COLORS[(x + y) % WALL_COLORS.length];
+
+      if (cell.top)    { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + cellSize, py); ctx.stroke(); }
+      if (cell.right)  { ctx.beginPath(); ctx.moveTo(px + cellSize, py); ctx.lineTo(px + cellSize, py + cellSize); ctx.stroke(); }
+      if (cell.bottom) { ctx.beginPath(); ctx.moveTo(px, py + cellSize); ctx.lineTo(px + cellSize, py + cellSize); ctx.stroke(); }
+      if (cell.left)   { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + cellSize); ctx.stroke(); }
+    }
+  }
+
+  // Goal
+  const goalEmoji = character === 'mouse' ? '🧀' : '🥛';
+  const emojiSize = cellSize * 0.7;
+  ctx.font = emojiSize + 'px serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(goalEmoji, goalX * cellSize + cellSize / 2, goalY * cellSize + cellSize / 2);
+
+  // Player (smooth position)
+  const playerEmoji = character === 'mouse' ? '🐭' : '🐱';
+  ctx.font = emojiSize + 'px serif';
+  ctx.fillText(playerEmoji, playerPixelX + cellSize / 2, playerPixelY + cellSize / 2);
+}
+
+function drawCircularMaze() {
+  const centerX = canvas.width / 2, centerY = canvas.height / 2;
+  const maxRadius = Math.min(centerX, centerY) - 20;
+  const ringWidth = maxRadius / rows;
+  
+  // Fill background
+  ctx.fillStyle = PATH_COLOR;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, maxRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw visited trail
+  if (playerTrail.length) {
+    for (const [sector, ring] of playerTrail) {
+      const r1 = ring * ringWidth, r2 = (ring + 1) * ringWidth;
+      const angleStart = (sector / cols) * Math.PI * 2 - Math.PI / 2;
+      const angleEnd = ((sector + 1) / cols) * Math.PI * 2 - Math.PI / 2;
+      ctx.fillStyle = VISITED_COLOR;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, r2 - 2, angleStart, angleEnd);
+      ctx.arc(centerX, centerY, r1 + 2, angleEnd, angleStart, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Hint path
+  if (showingHint && hintPath.length > 1) {
+    ctx.strokeStyle = '#a29bfe';
+    ctx.lineWidth = ringWidth * 0.2;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    const [s0, r0] = hintPath[0];
+    const angle0 = ((s0 + 0.5) / cols) * Math.PI * 2 - Math.PI / 2;
+    const rad0 = (r0 + 0.5) * ringWidth;
+    ctx.moveTo(centerX + Math.cos(angle0) * rad0, centerY + Math.sin(angle0) * rad0);
+    for (let i = 1; i < hintPath.length; i++) {
+      const [s, r] = hintPath[i];
+      const angle = ((s + 0.5) / cols) * Math.PI * 2 - Math.PI / 2;
+      const rad = (r + 0.5) * ringWidth;
+      ctx.lineTo(centerX + Math.cos(angle) * rad, centerY + Math.sin(angle) * rad);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw walls
+  const wallW = Math.max(2, ringWidth * 0.08);
+  ctx.lineWidth = wallW;
+  ctx.lineCap = 'round';
+
+  for (let ring = 0; ring < rows; ring++) {
+    for (let sector = 0; sector < cols; sector++) {
+      const cell = maze[ring][sector];
+      const r1 = ring * ringWidth, r2 = (ring + 1) * ringWidth;
+      const angleStart = (sector / cols) * Math.PI * 2 - Math.PI / 2;
+      const angleEnd = ((sector + 1) / cols) * Math.PI * 2 - Math.PI / 2;
+      ctx.strokeStyle = WALL_COLORS[(ring + sector) % WALL_COLORS.length];
+
+      // Inner arc
+      if (cell.inner && ring > 0) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r1, angleStart, angleEnd);
+        ctx.stroke();
+      }
+      // Outer arc
+      if (cell.outer) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r2, angleStart, angleEnd);
+        ctx.stroke();
+      }
+      // CCW radial
+      if (cell.ccw) {
+        ctx.beginPath();
+        ctx.moveTo(centerX + Math.cos(angleStart) * r1, centerY + Math.sin(angleStart) * r1);
+        ctx.lineTo(centerX + Math.cos(angleStart) * r2, centerY + Math.sin(angleStart) * r2);
+        ctx.stroke();
+      }
+      // CW radial (only if last sector, to close the circle)
+      if (cell.cw && sector === cols - 1) {
+        ctx.beginPath();
+        ctx.moveTo(centerX + Math.cos(angleEnd) * r1, centerY + Math.sin(angleEnd) * r1);
+        ctx.lineTo(centerX + Math.cos(angleEnd) * r2, centerY + Math.sin(angleEnd) * r2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Goal
+  const goalEmoji = character === 'mouse' ? '🧀' : '🥛';
+  const goalAngle = ((goalX + 0.5) / cols) * Math.PI * 2 - Math.PI / 2;
+  const goalRad = (goalY + 0.5) * ringWidth;
+  const goalPx = centerX + Math.cos(goalAngle) * goalRad;
+  const goalPy = centerY + Math.sin(goalAngle) * goalRad;
+  const emojiSize = ringWidth * 0.7;
+  ctx.font = emojiSize + 'px serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(goalEmoji, goalPx, goalPy);
+
+  // Player (smooth position)
+  const playerEmoji = character === 'mouse' ? '🐭' : '🐱';
+  const playerAngle = ((playerPixelX / ringWidth + 0.5) / cols) * Math.PI * 2 - Math.PI / 2;
+  const playerRad = (playerPixelY / ringWidth + 0.5) * ringWidth;
+  const playerPx = centerX + Math.cos(playerAngle) * playerRad;
+  const playerPy = centerY + Math.sin(playerAngle) * playerRad;
+  ctx.font = emojiSize + 'px serif';
+  ctx.fillText(playerEmoji, playerPx, playerPy);
+}
+
+let playerTrail = [];
+
+/* ═══════════════════════════════════════════
+   GAME LOOP
+   ═══════════════════════════════════════════ */
+function gameLoop() {
+  // Smooth movement interpolation
+  let targetX, targetY;
+  if (mazeShape === 'rect') {
+    targetX = playerX * cellSize;
+    targetY = playerY * cellSize;
+  } else {
+    // In circular: store sector/ring as pseudo-pixels
+    targetX = playerX * cellSize;  // sector index * ringWidth
+    targetY = playerY * cellSize;  // ring index * ringWidth
+  }
+  const speed = 0.25;
+  playerPixelX += (targetX - playerPixelX) * speed;
+  playerPixelY += (targetY - playerPixelY) * speed;
+  if (Math.abs(playerPixelX - targetX) < 0.5) playerPixelX = targetX;
+  if (Math.abs(playerPixelY - targetY) < 0.5) playerPixelY = targetY;
+
+  drawMaze();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+/* ═══════════════════════════════════════════
+   MOVEMENT
+   ═══════════════════════════════════════════ */
+function movePlayer(dx, dy) {
+  const cell = maze[playerY][playerX];
+  let nx = playerX, ny = playerY;
+
+  if (mazeShape === 'rect') {
+    // Check wall
+    if (dx === 0 && dy === -1 && cell.top)    return;
+    if (dx === 1 && dy === 0  && cell.right)  return;
+    if (dx === 0 && dy === 1  && cell.bottom) return;
+    if (dx === -1 && dy === 0 && cell.left)   return;
+
+    nx = playerX + dx; ny = playerY + dy;
+    if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return;
+  } else {
+    // Circular: playerY = ring, playerX = sector
+    // dy < 0 = inward (toward center), dy > 0 = outward
+    // dx < 0 = counter-clockwise,      dx > 0 = clockwise
+    if (dy === -1 && (playerY === 0    || cell.inner)) return;
+    if (dy === 1  && (playerY === rows - 1 || cell.outer)) return;
+    if (dx === -1 && cell.ccw) return;
+    if (dx === 1  && cell.cw)  return;
+
+    nx = (playerX + dx + cols) % cols;
+    ny = playerY + dy;
+    if (ny < 0 || ny >= rows) return;
+  }
+
+  playerX = nx; playerY = ny;
+  moveCount++;
+  document.getElementById('moveDisplay').textContent = '👣 ' + moveCount;
+
+  // Track trail
+  if (!playerTrail.some(([tx, ty]) => tx === playerX && ty === playerY)) {
+    playerTrail.push([playerX, playerY]);
+  }
+
+  // Hide hint after move
+  showingHint = false;
+
+  // Win check
+  if (playerX === goalX && playerY === goalY) {
+    winGame();
+  }
+}
+
+/* Keyboard */
+document.addEventListener('keydown', e => {
+  if (document.getElementById('gameScreen').classList.contains('hidden')) return;
+  switch(e.key) {
+    case 'ArrowUp':    case 'w': case 'W': movePlayer(0, -1); e.preventDefault(); break;
+    case 'ArrowDown':  case 's': case 'S': movePlayer(0, 1);  e.preventDefault(); break;
+    case 'ArrowLeft':  case 'a': case 'A': movePlayer(-1, 0); e.preventDefault(); break;
+    case 'ArrowRight': case 'd': case 'D': movePlayer(1, 0);  e.preventDefault(); break;
+  }
+});
+
+/* ═══════════════════════════════════════════
+   DRAG-TO-MOVE  (mouse + touch, rect & circular)
+   Each cell-width of drag = one step. Works on
+   both desktop (mouse) and mobile (finger).
+   ═══════════════════════════════════════════ */
+let dragActive = false;
+let dragRefX = 0, dragRefY = 0;  // screen pos of last committed step
+
+function dragThreshold() {
+  // How many screen pixels to drag before moving one cell
+  if (mazeShape === 'rect') return Math.max(18, cellSize * 0.55);
+  // Circular: use a fixed angular/radial threshold in pixels
+  const ringWidth = (Math.min(canvas.width, canvas.height) / 2 - 20) / rows;
+  return Math.max(18, ringWidth * 0.55);
+}
+
+function screenToCircularMove(screenDx, screenDy) {
+  // Convert a screen-space drag delta into circular (dx=angular, dy=radial) move
+  const centerX = canvas.width / 2, centerY = canvas.height / 2;
+  const ringWidth = (Math.min(canvas.width, canvas.height) / 2 - 20) / rows;
+  // Current player position in screen space
+  const playerAngle = ((playerX + 0.5) / cols) * Math.PI * 2 - Math.PI / 2;
+  const radialDir   = [Math.cos(playerAngle), Math.sin(playerAngle)];   // outward
+  const cwDir       = [-Math.sin(playerAngle), Math.cos(playerAngle)];  // clockwise tangent
+
+  const radialComp = screenDx * radialDir[0] + screenDy * radialDir[1];
+  const cwComp     = screenDx * cwDir[0]     + screenDy * cwDir[1];
+
+  if (Math.abs(radialComp) >= Math.abs(cwComp)) {
+    return [0, radialComp > 0 ? 1 : -1];   // outward / inward
+  } else {
+    return [cwComp > 0 ? 1 : -1, 0];       // clockwise / counter-clockwise
+  }
+}
+
+function handleDragStart(sx, sy) {
+  dragActive = true;
+  dragRefX = sx; dragRefY = sy;
+}
+
+function handleDragMove(sx, sy) {
+  if (!dragActive) return;
+  const dx = sx - dragRefX, dy = sy - dragRefY;
+  const threshold = dragThreshold();
+
+  if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+
+  // Determine move direction
+  let moveDx, moveDy;
+  if (mazeShape === 'rect') {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      moveDx = dx > 0 ? 1 : -1; moveDy = 0;
+    } else {
+      moveDx = 0; moveDy = dy > 0 ? 1 : -1;
+    }
+  } else {
+    [moveDx, moveDy] = screenToCircularMove(dx, dy);
+  }
+
+  movePlayer(moveDx, moveDy);
+  // Advance the reference point by one threshold in the move direction
+  dragRefX = sx; dragRefY = sy;
+}
+
+function handleDragEnd() { dragActive = false; }
+
+// Mouse
+canvas.addEventListener('mousedown', e => {
+  handleDragStart(e.clientX, e.clientY);
+});
+window.addEventListener('mousemove', e => {
+  handleDragMove(e.clientX, e.clientY);
+});
+window.addEventListener('mouseup', handleDragEnd);
+
+// Touch
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  handleDragStart(t.clientX, t.clientY);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  handleDragMove(t.clientX, t.clientY);
+}, { passive: false });
+canvas.addEventListener('touchend', handleDragEnd, { passive: true });
+
+/* ═══════════════════════════════════════════
+   HINT
+   ═══════════════════════════════════════════ */
+function showHint() {
+  hintPath = solveMaze(playerX, playerY, goalX, goalY);
+  showingHint = true;
+  setTimeout(() => { showingHint = false; }, 2000);
+}
+
+/* ═══════════════════════════════════════════
+   START / WIN
+   ═══════════════════════════════════════════ */
+function startGame(diff) {
+  lastDiff = diff;
+  const d = DIFFICULTIES[diff];
+  
+  if (mazeShape === 'rect') {
+    generateMaze(d.cols, d.rows);
+    playerX = 0; playerY = 0;
+    goalX = cols - 1; goalY = rows - 1;
+  } else {
+    // Circular: fewer sectors, more rings for harder difficulty
+    const rings = Math.floor(d.cols * 0.6);
+    const sectors = Math.floor(d.cols * 1.2);
+    generateCircularMaze(rings, sectors);
+    playerX = 0; playerY = 0;  // start at sector 0, ring 0 (center)
+    goalX = Math.floor(sectors / 2); goalY = rings - 1;  // opposite side, outer ring
+  }
+
+  moveCount = 0; playerTrail = [[playerX, playerY]];
+  showingHint = false;
+
+  document.getElementById('moveDisplay').textContent = '👣 0';
+  document.getElementById('timerDisplay').textContent = '⏱ 0s';
+
+  resizeCanvas();
+  playerPixelX = 0; playerPixelY = 0;
+  showScreen('gameScreen');
+
+  startTime = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timerDisplay').textContent = '⏱ ' + s + 's';
+  }, 500);
+
+  cancelAnimationFrame(animFrame);
+  gameLoop();
+}
+
+function winGame() {
+  clearInterval(timerInterval);
+  cancelAnimationFrame(animFrame);
+  const seconds = Math.floor((Date.now() - startTime) / 1000);
+  const treat = character === 'mouse' ? '🧀' : '🥛';
+  document.getElementById('winStats').innerHTML =
+    `${treat} Found in <b>${seconds}s</b> with <b>${moveCount}</b> moves!`;
+  showScreen('winScreen');
+  spawnConfetti();
+}
+
+/* ═══════════════════════════════════════════
+   CONFETTI
+   ═══════════════════════════════════════════ */
+function spawnConfetti() {
+  const colors = ['#ff6b6b','#feca57','#48dbfb','#ff9ff3','#54a0ff','#2ecc71','#fd79a8'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.background = colors[Math.random() * colors.length | 0];
+    el.style.animationDelay = (Math.random() * 1.5) + 's';
+    el.style.width = (6 + Math.random() * 8) + 'px';
+    el.style.height = (6 + Math.random() * 8) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RESIZE HANDLER
+   ═══════════════════════════════════════════ */
+window.addEventListener('resize', () => {
+  if (!document.getElementById('gameScreen').classList.contains('hidden')) {
+    resizeCanvas();
+  }
+});
+</script>
+</body>
+</html>
