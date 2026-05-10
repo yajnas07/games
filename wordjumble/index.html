@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔤 Word Jumble!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow-x: hidden;
+  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(160deg, #0a1628 0%, #1a2a4a 50%, #0f2040 100%);
+  color: #fff;
+  -webkit-user-select: none; user-select: none;
+}
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.35s;
+  padding: 20px;
+}
+.screen.hidden { opacity: 0; pointer-events: none; }
+
+/* ══════ START SCREEN ══════ */
+#startScreen {
+  background: linear-gradient(160deg, #0652dd 0%, #1e3799 50%, #0a3d62 100%);
+  z-index: 2; gap: 8px;
+}
+#startScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.4rem, 9vw, 4.6rem);
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 30px rgba(72,219,251,0.5);
+  text-align: center;
+}
+.letter-preview {
+  display: flex; gap: 6px; margin: 10px 0 6px;
+  animation: letterWiggle 2s ease-in-out infinite alternate;
+}
+@keyframes letterWiggle {
+  0%   { transform: rotate(-2deg); }
+  100% { transform: rotate(2deg); }
+}
+.letter-preview span {
+  width: clamp(36px,9vw,52px); height: clamp(40px,10vw,56px);
+  background: linear-gradient(135deg, #feca57, #ff9f43);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka One', cursive; font-size: clamp(1.3rem,4vw,1.8rem);
+  color: #1a1a2e; box-shadow: 0 4px 12px rgba(254,202,87,0.3);
+}
+#startScreen .subtitle {
+  font-size: clamp(0.95rem, 2.8vw, 1.2rem);
+  color: #7ec8e3; font-weight: 700; text-align: center; margin-bottom: 12px;
+}
+.start-hs {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50px; padding: 6px 22px;
+  color: #ffd32a; font-weight: 800; font-size: 0.95rem; margin-bottom: 16px;
+}
+.level-label {
+  font-family: 'Fredoka One', cursive; color: #7ec8e3;
+  font-size: 1.1rem; margin-bottom: 8px;
+}
+.level-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+.level-card {
+  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 16px; padding: 14px 18px; cursor: pointer;
+  transition: all 0.2s; text-align: center; min-width: 88px;
+}
+.level-card:hover { background: rgba(255,255,255,0.16); transform: translateY(-3px); }
+.level-card.selected { border-color: #48dbfb; background: rgba(72,219,251,0.15); transform: scale(1.05); }
+.level-icon { font-size: 1.8rem; margin-bottom: 4px; }
+.level-name { font-family: 'Fredoka One', cursive; font-size: 1rem; }
+.level-desc { font-size: 0.7rem; color: #7ec8e3; margin-top: 2px; }
+.play-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  padding: 0.65em 2.5em;
+  background: linear-gradient(135deg, #feca57, #ff9f43);
+  color: #1a1a2e; border: none; border-radius: 2em; cursor: pointer;
+  box-shadow: 0 6px 0 #b86e00, 0 0 25px rgba(254,202,87,0.4);
+  transition: all 0.15s;
+}
+.play-btn:hover  { transform: translateY(-4px); box-shadow: 0 10px 0 #b86e00; }
+.play-btn:active { transform: translateY(2px);  box-shadow: 0 3px 0 #b86e00; }
+
+/* ══════ GAME SCREEN ══════ */
+#gameScreen {
+  background: linear-gradient(160deg, #0a1628 0%, #1a2a4a 100%);
+  z-index: 2; justify-content: flex-start; padding-top: 14px;
+  gap: 12px;
+}
+.hud {
+  width: 100%; max-width: 500px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px; flex-shrink: 0;
+}
+.hud-block { text-align: center; }
+.hud-val { font-family: 'Fredoka One', cursive; font-size: clamp(1.1rem,3.5vw,1.5rem); line-height: 1; }
+.hud-lbl { font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #5b8ab5; margin-top: 2px; }
+
+/* Word area */
+.word-area {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; width: 100%; max-width: 480px;
+}
+
+/* Hint / category */
+.hint-bar {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 8px 18px; text-align: center;
+  font-size: 0.9rem; color: #7ec8e3; font-weight: 700;
+}
+.hint-bar .emoji { font-size: 1.2rem; margin-right: 4px; }
+
+/* Answer slots */
+.answer-slots {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+}
+.answer-slot {
+  width: clamp(38px,10vw,54px); height: clamp(44px,12vw,62px);
+  background: rgba(255,255,255,0.06);
+  border: 3px dashed rgba(255,255,255,0.25);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.3rem,4vw,1.8rem);
+  color: #fff;
+  transition: all 0.2s;
+}
+.answer-slot.filled {
+  background: linear-gradient(135deg, #48dbfb, #0abde3);
+  border: 3px solid #48dbfb;
+  color: #0a1628;
+  box-shadow: 0 4px 12px rgba(72,219,251,0.3);
+  animation: slotPop 0.2s ease-out;
+}
+@keyframes slotPop {
+  0%   { transform: scale(0.8); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.answer-slot.correct {
+  background: linear-gradient(135deg, #1dd1a1, #10ac84);
+  border-color: #1dd1a1;
+  box-shadow: 0 4px 12px rgba(29,209,161,0.4);
+}
+.answer-slot.wrong {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  border-color: #ff6b6b;
+  animation: wrongShake 0.4s ease;
+}
+@keyframes wrongShake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-6px); }
+  50%      { transform: translateX(6px); }
+  75%      { transform: translateX(-4px); }
+}
+
+/* Jumbled letters */
+.jumbled-letters {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-top: 6px;
+}
+.letter-tile {
+  width: clamp(40px,10vw,56px); height: clamp(46px,12vw,64px);
+  background: linear-gradient(145deg, #feca57, #ff9f43);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.3rem,4vw,1.9rem);
+  color: #1a1a2e;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #b86e00;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.letter-tile:hover  { transform: translateY(-3px); box-shadow: 0 8px 0 #b86e00; }
+.letter-tile:active { transform: translateY(2px);  box-shadow: 0 2px 0 #b86e00; }
+.letter-tile.used {
+  opacity: 0.3; pointer-events: none;
+  transform: scale(0.9);
+}
+
+/* Action buttons */
+.action-btns {
+  display: flex; gap: 10px; margin-top: 8px;
+}
+.act-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(0.85rem,2.5vw,1.1rem);
+  padding: 0.5em 1.4em; border: none; border-radius: 2em;
+  cursor: pointer; color: #fff;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+  transition: all 0.15s;
+}
+.act-btn:hover  { transform: translateY(-2px); }
+.act-btn:active { transform: translateY(2px); }
+.act-btn.red    { background: #e74c3c; }
+.act-btn.blue   { background: #0abde3; }
+.act-btn.green  { background: #27ae60; }
+
+/* Feedback message */
+.feedback {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.4rem, 5vw, 2.2rem);
+  min-height: 2em;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  transition: opacity 0.3s;
+}
+
+/* Skip animation */
+.skip-penalty {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-family: 'Fredoka One', cursive; font-size: 2rem;
+  color: #ff6b6b; pointer-events: none; z-index: 50;
+  animation: skipFloat 0.8s ease-out forwards;
+}
+@keyframes skipFloat {
+  0%   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-80%) scale(0.7); }
+}
+
+/* ══════ END SCREEN ══════ */
+#endScreen {
+  background: linear-gradient(160deg, #0652dd 0%, #1e3799 50%, #0a3d62 100%);
+  z-index: 3; gap: 10px;
+}
+#endScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.2rem,8vw,4rem);
+  text-align: center;
+}
+.end-emoji { font-size: clamp(3rem,10vw,5rem); }
+.end-score-big {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.4rem,4.5vw,2.2rem);
+  color: #feca57;
+}
+.end-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.end-stat {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px; padding: 10px 16px; text-align: center;
+}
+.end-stat-val { font-family: 'Fredoka One', cursive; font-size: 1.3rem; color: #48dbfb; }
+.end-stat-lbl { font-size: 0.68rem; color: #7ec8e3; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 2px; }
+.new-hs {
+  background: linear-gradient(135deg, #feca57, #ff9ff3);
+  color: #1a1a2e; font-family: 'Fredoka One', cursive;
+  font-size: 1rem; padding: 5px 18px; border-radius: 50px; display: none;
+}
+.end-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.end-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1rem,3.5vw,1.3rem);
+  padding: 0.6em 1.8em; border: none; border-radius: 2em;
+  cursor: pointer; color: #fff;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.3); transition: all 0.15s;
+}
+.end-btn:hover  { transform: translateY(-3px); }
+.end-btn:active { transform: translateY(2px); }
+.end-btn.blue   { background: #0abde3; }
+.end-btn.yellow { background: #f39c12; }
+
+/* ─── Back button ─── */
+.back-btn {
+  position: fixed; top: 14px; left: 14px; z-index: 100;
+  background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50px; color: #fff;
+  font-size: 0.9rem; font-weight: 700; font-family: 'Nunito', sans-serif;
+  padding: 7px 14px 7px 10px; cursor: pointer;
+  text-decoration: none; display: flex; align-items: center; gap: 6px;
+  backdrop-filter: blur(4px); transition: background 0.2s;
+}
+.back-btn:hover { background: rgba(0,0,0,0.7); }
+
+/* ─── Confetti ─── */
+.confetti-piece {
+  position: fixed; border-radius: 2px;
+  animation: cfFall linear forwards;
+  z-index: 999; pointer-events: none;
+}
+@keyframes cfFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<a class="back-btn" href="../index.html">← Arcade</a>
+
+<!-- ══════════ START SCREEN ══════════ -->
+<div class="screen" id="startScreen">
+  <h1>🔤 Word Jumble!</h1>
+  <div class="letter-preview">
+    <span>W</span><span>O</span><span>R</span><span>D</span><span>S</span>
+  </div>
+  <p class="subtitle">Unscramble the jumbled letters to spell the word!<br>A fun way to practise spelling! 📚</p>
+  <div class="start-hs" id="startHs">🏆 Best Score: 0</div>
+
+  <div class="level-label">Choose Difficulty:</div>
+  <div class="level-cards">
+    <div class="level-card selected" data-level="easy">
+      <div class="level-icon">😊</div>
+      <div class="level-name">Easy</div>
+      <div class="level-desc">3–4 letters</div>
+    </div>
+    <div class="level-card" data-level="medium">
+      <div class="level-icon">😄</div>
+      <div class="level-name">Medium</div>
+      <div class="level-desc">4–5 letters</div>
+    </div>
+    <div class="level-card" data-level="hard">
+      <div class="level-icon">🤓</div>
+      <div class="level-name">Hard</div>
+      <div class="level-desc">5–7 letters</div>
+    </div>
+  </div>
+
+  <button class="play-btn" id="playBtn">Start Spelling! ✏️</button>
+</div>
+
+<!-- ══════════ GAME SCREEN ══════════ -->
+<div class="screen hidden" id="gameScreen">
+  <div class="hud">
+    <div class="hud-block">
+      <div class="hud-val" style="color:#feca57" id="scoreVal">0</div>
+      <div class="hud-lbl">Score</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" style="color:#48dbfb" id="wordNum">1 / 10</div>
+      <div class="hud-lbl">Word</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" style="color:#1dd1a1" id="streakVal">🔥 0</div>
+      <div class="hud-lbl">Streak</div>
+    </div>
+  </div>
+
+  <div class="word-area">
+    <div class="hint-bar" id="hintBar"><span class="emoji">🐾</span> Animal</div>
+    <div class="answer-slots" id="answerSlots"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="jumbled-letters" id="jumbledLetters"></div>
+    <div class="action-btns">
+      <button class="act-btn red" id="clearBtn">✕ Clear</button>
+      <button class="act-btn blue" id="skipBtn">⏭ Skip</button>
+      <button class="act-btn green" id="submitBtn">✓ Check</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ END SCREEN ══════════ -->
+<div class="screen hidden" id="endScreen">
+  <div class="end-emoji" id="endEmoji">🎉</div>
+  <h1 id="endTitle" style="color:#feca57">Great Spelling!</h1>
+  <div class="end-score-big" id="endScoreBig">Score: 0</div>
+  <div class="new-hs" id="newHsBadge">🌟 New High Score! 🌟</div>
+  <div class="end-stats">
+    <div class="end-stat">
+      <div class="end-stat-val" id="endCorrect">0</div>
+      <div class="end-stat-lbl">Correct</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endSkipped">0</div>
+      <div class="end-stat-lbl">Skipped</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endStreak">0</div>
+      <div class="end-stat-lbl">Best Streak</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endBest">0</div>
+      <div class="end-stat-lbl">All-Time Best</div>
+    </div>
+  </div>
+  <div class="end-btns">
+    <button class="end-btn blue" id="playAgainBtn">🔄 Play Again</button>
+    <button class="end-btn yellow" id="menuBtn">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  WORD JUMBLE — Game Logic
+// ═══════════════════════════════════════════════════
+
+// ─── Word bank by difficulty ─────────────────────
+const WORDS = {
+  easy: [
+    {word:'CAT',hint:'🐾 Animal'},{word:'DOG',hint:'🐾 Animal'},{word:'SUN',hint:'☀️ Sky'},
+    {word:'HAT',hint:'👒 Clothing'},{word:'CUP',hint:'🍵 Kitchen'},{word:'BED',hint:'🛏️ Furniture'},
+    {word:'RUN',hint:'🏃 Action'},{word:'FLY',hint:'🦅 Action'},{word:'BIG',hint:'📏 Size'},
+    {word:'RED',hint:'🎨 Colour'},{word:'FISH',hint:'🐾 Animal'},{word:'BIRD',hint:'🐾 Animal'},
+    {word:'TREE',hint:'🌳 Nature'},{word:'BOOK',hint:'📚 School'},{word:'FROG',hint:'🐾 Animal'},
+    {word:'STAR',hint:'⭐ Sky'},{word:'MILK',hint:'🥛 Food'},{word:'RAIN',hint:'🌧️ Weather'},
+    {word:'PLAY',hint:'🎮 Action'},{word:'CAKE',hint:'🍰 Food'},{word:'BALL',hint:'⚽ Toy'},
+    {word:'MOON',hint:'🌙 Sky'},{word:'BEAR',hint:'🐾 Animal'},{word:'DUCK',hint:'🐾 Animal'},
+    {word:'JUMP',hint:'🏃 Action'},{word:'NOSE',hint:'👃 Body'},{word:'LEAF',hint:'🌳 Nature'},
+    {word:'BOAT',hint:'⛵ Transport'},{word:'DRUM',hint:'🎵 Music'},{word:'PINK',hint:'🎨 Colour'},
+  ],
+  medium: [
+    {word:'APPLE',hint:'🍎 Fruit'},{word:'TIGER',hint:'🐾 Animal'},{word:'WATER',hint:'💧 Nature'},
+    {word:'HAPPY',hint:'😊 Feeling'},{word:'MUSIC',hint:'🎵 Sound'},{word:'ROBOT',hint:'🤖 Tech'},
+    {word:'PIZZA',hint:'🍕 Food'},{word:'BEACH',hint:'🏖️ Place'},{word:'CLOUD',hint:'☁️ Sky'},
+    {word:'HORSE',hint:'🐾 Animal'},{word:'DANCE',hint:'💃 Action'},{word:'SMILE',hint:'😊 Feeling'},
+    {word:'GREEN',hint:'🎨 Colour'},{word:'TRAIN',hint:'🚂 Transport'},{word:'CROWN',hint:'👑 Object'},
+    {word:'DREAM',hint:'💭 Mind'},{word:'PLANT',hint:'🌱 Nature'},{word:'SHARK',hint:'🦈 Animal'},
+    {word:'CANDY',hint:'🍬 Sweet'},{word:'NIGHT',hint:'🌙 Time'},{word:'BREAD',hint:'🍞 Food'},
+    {word:'SNAKE',hint:'🐍 Animal'},{word:'CHAIR',hint:'🪑 Furniture'},{word:'EARTH',hint:'🌍 Planet'},
+    {word:'STORM',hint:'⛈️ Weather'},{word:'MAGIC',hint:'✨ Fantasy'},{word:'OCEAN',hint:'🌊 Nature'},
+    {word:'LEMON',hint:'🍋 Fruit'},{word:'PAINT',hint:'🎨 Art'},{word:'MOUSE',hint:'🐭 Animal'},
+  ],
+  hard: [
+    {word:'PLANET',hint:'🌍 Space'},{word:'ROCKET',hint:'🚀 Space'},{word:'FLOWER',hint:'🌺 Nature'},
+    {word:'MONKEY',hint:'🐾 Animal'},{word:'CASTLE',hint:'🏰 Building'},{word:'GARDEN',hint:'🌱 Place'},
+    {word:'JUNGLE',hint:'🌴 Place'},{word:'SUNSET',hint:'🌅 Nature'},{word:'WINTER',hint:'❄️ Season'},
+    {word:'BUTTER',hint:'🧈 Food'},{word:'SPIDER',hint:'🕷️ Animal'},{word:'PENCIL',hint:'✏️ School'},
+    {word:'PIRATE',hint:'🏴‍☠️ Adventure'},{word:'DRAGON',hint:'🐉 Fantasy'},{word:'MUFFIN',hint:'🧁 Food'},
+    {word:'SAFARI',hint:'🦁 Adventure'},{word:'ISLAND',hint:'🏝️ Place'},{word:'BRIDGE',hint:'🌉 Building'},
+    {word:'BASKET',hint:'🧺 Object'},{word:'TUNNEL',hint:'🚇 Place'},{word:'RABBIT',hint:'🐰 Animal'},
+    {word:'PUPPET',hint:'🎭 Toy'},{word:'MEADOW',hint:'🌼 Nature'},{word:'CIRCUS',hint:'🎪 Fun'},
+    {word:'HELMET',hint:'⛑️ Safety'},{word:'MAGNET',hint:'🧲 Science'},{word:'GIRAFFE',hint:'🦒 Animal'},
+    {word:'RAINBOW',hint:'🌈 Nature'},{word:'MONSTER',hint:'👾 Fantasy'},{word:'DIAMOND',hint:'💎 Treasure'},
+  ]
+};
+
+const ROUNDS = 10;
+const PTS_CORRECT = 100;
+const PTS_BONUS_STREAK = 25;  // per streak level
+const PTS_SKIP_PENALTY = -30;
+
+// ─── State ───────────────────────────────────────
+let currentLevel = 'easy';
+let score, round, correct, skipped, streak, bestStreak;
+let currentWord, currentHint, jumbledArr, answerArr;
+let wordQueue = [];
+let highScores = {};
+let gameActive = false;
+
+function $(id) { return document.getElementById(id); }
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ─── High scores ─────────────────────────────────
+function loadHS() {
+  try { highScores = JSON.parse(localStorage.getItem('wordjumble_hs') || '{}'); } catch(e){ highScores={}; }
+  const best = Object.values(highScores).reduce((a,b)=>Math.max(a,b),0);
+  $('startHs').textContent = '🏆 Best Score: ' + best;
+}
+function saveHS(level, s) {
+  const prev = highScores[level] || 0;
+  if (s > prev) { highScores[level] = s; localStorage.setItem('wordjumble_hs', JSON.stringify(highScores)); return true; }
+  return false;
+}
+
+function showScreen(id) {
+  ['startScreen','gameScreen','endScreen'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+}
+
+// ─── Sound ───────────────────────────────────────
+let audioCtx;
+function ac() { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function playTap() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=700; g.gain.setValueAtTime(0.1,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.08); o.start();o.stop(c.currentTime+0.08); } catch(e){}
+}
+function playCorrect() {
+  try { const c=ac(); [523,659,784].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f; g.gain.setValueAtTime(0.14,c.currentTime+i*0.1); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.1+0.2); o.start(c.currentTime+i*0.1);o.stop(c.currentTime+i*0.1+0.22); }); } catch(e){}
+}
+function playWrong() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.setValueAtTime(250,c.currentTime); o.frequency.exponentialRampToValueAtTime(150,c.currentTime+0.2); o.type='sawtooth'; g.gain.setValueAtTime(0.1,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.25); o.start();o.stop(c.currentTime+0.25); } catch(e){}
+}
+function playWin() {
+  try { const c=ac(); [523,659,784,1047].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f; g.gain.setValueAtTime(0.15,c.currentTime+i*0.13); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.13+0.3); o.start(c.currentTime+i*0.13);o.stop(c.currentTime+i*0.13+0.32); }); } catch(e){}
+}
+
+// ─── Start game ──────────────────────────────────
+function startGame() {
+  score = 0; round = 0; correct = 0; skipped = 0; streak = 0; bestStreak = 0;
+  gameActive = true;
+  wordQueue = shuffle([...WORDS[currentLevel]]).slice(0, ROUNDS);
+  showScreen('gameScreen');
+  nextWord();
+}
+
+// ─── Next word ───────────────────────────────────
+function nextWord() {
+  if (round >= ROUNDS) { endGame(); return; }
+  const entry = wordQueue[round];
+  currentWord = entry.word;
+  currentHint = entry.hint;
+  answerArr = [];
+
+  // Jumble letters (ensure different from original)
+  let j;
+  do { j = shuffle([...currentWord]); } while (j.join('') === currentWord && currentWord.length > 2);
+  jumbledArr = j.map((ch, i) => ({ ch, id: i, used: false }));
+
+  round++;
+  $('wordNum').textContent = `${round} / ${ROUNDS}`;
+  $('hintBar').innerHTML = `<span class="emoji">${currentHint.split(' ')[0]}</span> ${currentHint.split(' ').slice(1).join(' ')}`;
+  $('feedback').textContent = '';
+  renderSlots();
+  renderLetters();
+  updateHUD();
+}
+
+// ─── Render ──────────────────────────────────────
+function renderSlots() {
+  const el = $('answerSlots');
+  el.innerHTML = '';
+  for (let i = 0; i < currentWord.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'answer-slot' + (answerArr[i] ? ' filled' : '');
+    slot.textContent = answerArr[i] ? answerArr[i].ch : '';
+    slot.addEventListener('click', () => removeFromSlot(i));
+    el.appendChild(slot);
+  }
+}
+
+function renderLetters() {
+  const el = $('jumbledLetters');
+  el.innerHTML = '';
+  jumbledArr.forEach((item) => {
+    const tile = document.createElement('div');
+    tile.className = 'letter-tile' + (item.used ? ' used' : '');
+    tile.textContent = item.ch;
+    tile.addEventListener('click', () => addLetter(item));
+    el.appendChild(tile);
+  });
+}
+
+function addLetter(item) {
+  if (!gameActive || item.used) return;
+  if (answerArr.length >= currentWord.length) return;
+  item.used = true;
+  answerArr.push(item);
+  playTap();
+  renderSlots();
+  renderLetters();
+
+  // Auto-check when all slots filled
+  if (answerArr.length === currentWord.length) {
+    setTimeout(checkAnswer, 300);
+  }
+}
+
+function removeFromSlot(idx) {
+  if (!gameActive) return;
+  if (!answerArr[idx]) return;
+  const item = answerArr[idx];
+  item.used = false;
+  answerArr.splice(idx, 1);
+  playTap();
+  renderSlots();
+  renderLetters();
+}
+
+// ─── Check answer ────────────────────────────────
+function checkAnswer() {
+  const guess = answerArr.map(a => a.ch).join('');
+  const slots = $('answerSlots').children;
+
+  if (guess === currentWord) {
+    // Correct!
+    [...slots].forEach(s => s.classList.add('correct'));
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    const bonus = (streak - 1) * PTS_BONUS_STREAK;
+    score += PTS_CORRECT + bonus;
+    correct++;
+    playCorrect();
+    $('feedback').textContent = bonus > 0 ? `✅ Correct! +${PTS_CORRECT + bonus} 🔥` : '✅ Correct! +100';
+    $('feedback').style.color = '#1dd1a1';
+    updateHUD();
+    setTimeout(nextWord, 1200);
+  } else {
+    // Wrong
+    [...slots].forEach(s => s.classList.add('wrong'));
+    streak = 0;
+    playWrong();
+    $('feedback').textContent = '❌ Try again!';
+    $('feedback').style.color = '#ff6b6b';
+    updateHUD();
+    setTimeout(() => {
+      // Reset
+      answerArr.forEach(a => a.used = false);
+      answerArr = [];
+      renderSlots();
+      renderLetters();
+      $('feedback').textContent = '';
+    }, 800);
+  }
+}
+
+// ─── Skip ────────────────────────────────────────
+function skipWord() {
+  if (!gameActive) return;
+  score = Math.max(0, score + PTS_SKIP_PENALTY);
+  skipped++;
+  streak = 0;
+  updateHUD();
+
+  // Show penalty animation
+  const pen = document.createElement('div');
+  pen.className = 'skip-penalty';
+  pen.textContent = '−30';
+  document.body.appendChild(pen);
+  pen.addEventListener('animationend', () => pen.remove());
+
+  // Reveal answer briefly
+  answerArr = [...currentWord].map((ch,i) => ({ ch, id: i }));
+  renderSlots();
+  $('feedback').textContent = `The word was: ${currentWord}`;
+  $('feedback').style.color = '#feca57';
+
+  setTimeout(nextWord, 1400);
+}
+
+// ─── Clear ───────────────────────────────────────
+function clearAnswer() {
+  if (!gameActive) return;
+  answerArr.forEach(a => a.used = false);
+  answerArr = [];
+  renderSlots();
+  renderLetters();
+  $('feedback').textContent = '';
+}
+
+// ─── HUD ─────────────────────────────────────────
+function updateHUD() {
+  $('scoreVal').textContent = score;
+  $('streakVal').textContent = '🔥 ' + streak;
+}
+
+// ─── End game ────────────────────────────────────
+function endGame() {
+  gameActive = false;
+  const isNew = saveHS(currentLevel, score);
+  loadHS();
+  playWin();
+
+  const pct = correct / ROUNDS;
+  if (pct >= 0.9) {
+    $('endEmoji').textContent = '🏆'; $('endTitle').textContent = 'Spelling Champ!'; $('endTitle').style.color='#feca57';
+  } else if (pct >= 0.6) {
+    $('endEmoji').textContent = '🎉'; $('endTitle').textContent = 'Great Job!'; $('endTitle').style.color='#48dbfb';
+  } else {
+    $('endEmoji').textContent = '📚'; $('endTitle').textContent = 'Keep Practising!'; $('endTitle').style.color='#ff9ff3';
+  }
+
+  $('endScoreBig').textContent = 'Score: ' + score;
+  $('endCorrect').textContent = correct + ' / ' + ROUNDS;
+  $('endSkipped').textContent = skipped;
+  $('endStreak').textContent = '🔥 ' + bestStreak;
+  $('endBest').textContent = highScores[currentLevel] || score;
+  $('newHsBadge').style.display = isNew ? 'block' : 'none';
+
+  showScreen('endScreen');
+  if (pct >= 0.6) confetti();
+}
+
+// ─── Event listeners ─────────────────────────────
+$('playBtn').addEventListener('click', startGame);
+$('playAgainBtn').addEventListener('click', startGame);
+$('menuBtn').addEventListener('click', () => { showScreen('startScreen'); loadHS(); });
+$('clearBtn').addEventListener('click', clearAnswer);
+$('skipBtn').addEventListener('click', skipWord);
+$('submitBtn').addEventListener('click', checkAnswer);
+
+document.querySelectorAll('.level-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    currentLevel = card.dataset.level;
+    loadHS();
+  });
+});
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if (!gameActive || $('gameScreen').classList.contains('hidden')) return;
+  const key = e.key.toUpperCase();
+  if (key === 'BACKSPACE') { if (answerArr.length > 0) removeFromSlot(answerArr.length - 1); return; }
+  if (key === 'ENTER') { if (answerArr.length === currentWord.length) checkAnswer(); return; }
+  // Type letter
+  const avail = jumbledArr.find(it => !it.used && it.ch === key);
+  if (avail) addLetter(avail);
+});
+
+// ─── Confetti ────────────────────────────────────
+function confetti() {
+  const colors = ['#feca57','#ff6b6b','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe','#54a0ff'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${1.4+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;width:${6+Math.random()*9}px;height:${6+Math.random()*9}px;border-radius:${Math.random()>0.5?'50%':'3px'};`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// ─── Init ────────────────────────────────────────
+loadHS();
+</script>
+</body>
+</html>

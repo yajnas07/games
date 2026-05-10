@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🔢 Number Dash!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: 'Nunito', sans-serif;
+  background: #1a0a00;
+  color: #fff;
+  -webkit-user-select: none; user-select: none;
+  touch-action: manipulation;
+}
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.35s; padding: 20px;
+}
+.screen.hidden { opacity: 0; pointer-events: none; }
+
+/* ══════ START ══════ */
+#startScreen {
+  background: linear-gradient(160deg, #b7410e 0%, #f39c12 50%, #feca57 100%);
+  z-index: 2; gap: 8px;
+}
+#startScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.4rem, 9vw, 4.6rem);
+  color: #fff;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 25px rgba(255,255,255,0.4);
+  text-align: center;
+}
+.num-preview {
+  display: flex; gap: 6px; margin: 8px 0;
+  animation: numBounce 1.5s ease-in-out infinite alternate;
+}
+@keyframes numBounce { 0%{transform:translateY(0)} 100%{transform:translateY(-8px)} }
+.num-preview span {
+  width: clamp(34px,8vw,48px); height: clamp(34px,8vw,48px);
+  background: #fff; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka One', cursive; font-size: clamp(1.1rem,3.5vw,1.6rem);
+  color: #b7410e; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+#startScreen .subtitle {
+  font-size: clamp(0.95rem,2.8vw,1.2rem);
+  color: #6b2f00; font-weight: 700; text-align: center; margin-bottom: 10px;
+}
+.start-hs {
+  background: rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 50px; padding: 6px 22px;
+  color: #fff; font-weight: 800; font-size: 0.95rem; margin-bottom: 14px;
+}
+.level-label {
+  font-family: 'Fredoka One', cursive; color: #6b2f00;
+  font-size: 1.1rem; margin-bottom: 8px;
+}
+.level-cards { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+.level-card {
+  background: rgba(255,255,255,0.2); border: 3px solid rgba(255,255,255,0.4);
+  border-radius: 16px; padding: 12px 16px; cursor: pointer;
+  transition: all 0.2s; text-align: center; min-width: 85px;
+}
+.level-card:hover { background: rgba(255,255,255,0.35); transform: translateY(-3px); }
+.level-card.selected { border-color: #fff; background: rgba(255,255,255,0.4); transform: scale(1.05); }
+.level-icon { font-size: 1.6rem; margin-bottom: 2px; }
+.level-name { font-family: 'Fredoka One', cursive; font-size: 0.95rem; color: #4a1800; }
+.level-desc { font-size: 0.68rem; color: #6b2f00; margin-top: 2px; font-weight: 700; }
+.play-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.2rem,4vw,1.7rem);
+  padding: 0.65em 2.5em;
+  background: linear-gradient(135deg, #fff, #f0f0f0);
+  color: #b7410e; border: none; border-radius: 2em; cursor: pointer;
+  box-shadow: 0 6px 0 #999, 0 0 25px rgba(255,255,255,0.3);
+  transition: all 0.15s;
+}
+.play-btn:hover  { transform: translateY(-4px); box-shadow: 0 10px 0 #999; }
+.play-btn:active { transform: translateY(2px);  box-shadow: 0 3px 0 #999; }
+
+/* ══════ GAME ══════ */
+#gameScreen {
+  background: linear-gradient(160deg, #1a0a00 0%, #2d1400 50%, #3d1c00 100%);
+  z-index: 2; justify-content: flex-start; padding-top: 14px; gap: 10px;
+}
+.hud {
+  width: 100%; max-width: 500px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px; flex-shrink: 0;
+}
+.hud-block { text-align: center; }
+.hud-val { font-family: 'Fredoka One', cursive; font-size: clamp(1.1rem,3.5vw,1.5rem); line-height: 1; }
+.hud-lbl { font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #b87333; margin-top: 2px; }
+
+/* Next number indicator */
+.next-num {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.2rem,4vw,1.6rem);
+  color: #feca57;
+  background: rgba(254,202,87,0.12);
+  border: 2px solid rgba(254,202,87,0.3);
+  border-radius: 50px; padding: 6px 24px;
+}
+
+/* Number grid */
+.grid-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 500px; padding: 6px;
+}
+.number-grid {
+  display: grid; gap: 8px; width: 100%;
+}
+.num-cell {
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, #f39c12, #e67e22);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.2rem, 4vw, 1.8rem);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #a86200;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.num-cell:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #a86200; }
+.num-cell:active { transform: translateY(2px); box-shadow: 0 1px 0 #a86200; }
+.num-cell.done {
+  background: linear-gradient(145deg, #1dd1a1, #10ac84);
+  box-shadow: 0 4px 0 #0a7d5a;
+  pointer-events: none;
+  animation: cellDone 0.3s ease-out;
+}
+@keyframes cellDone {
+  0%  { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100%{ transform: scale(1); }
+}
+.num-cell.wrong {
+  animation: cellWrong 0.35s ease;
+  background: linear-gradient(145deg, #ff6b6b, #ee5a24);
+  box-shadow: 0 4px 0 #a62e00;
+}
+@keyframes cellWrong {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  50%      { transform: translateX(5px); }
+  75%      { transform: translateX(-3px); }
+}
+
+/* Timer pulse when low */
+.timer-pulse { animation: tPulse 0.5s ease infinite alternate; }
+@keyframes tPulse { 0%{transform:scale(1)} 100%{transform:scale(1.1);color:#ff6b6b} }
+
+/* ══════ END ══════ */
+#endScreen {
+  background: linear-gradient(160deg, #b7410e 0%, #f39c12 50%, #feca57 100%);
+  z-index: 3; gap: 10px;
+}
+#endScreen h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(2.2rem,8vw,4rem); color: #fff;
+  text-shadow: 3px 3px 0 rgba(0,0,0,0.2); text-align: center;
+}
+.end-emoji { font-size: clamp(3rem,10vw,5rem); }
+.end-time-big {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.8rem,6vw,3rem);
+  color: #fff;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+}
+.end-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.end-stat {
+  background: rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 14px; padding: 10px 16px; text-align: center;
+}
+.end-stat-val { font-family: 'Fredoka One', cursive; font-size: 1.3rem; color: #fff; }
+.end-stat-lbl { font-size: 0.68rem; color: #6b2f00; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 2px; }
+.new-hs {
+  background: #fff; color: #b7410e;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1rem; padding: 5px 18px; border-radius: 50px; display: none;
+}
+.end-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.end-btn {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1rem,3.5vw,1.3rem);
+  padding: 0.6em 1.8em; border: none; border-radius: 2em;
+  cursor: pointer; color: #fff;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.3); transition: all 0.15s;
+}
+.end-btn:hover  { transform: translateY(-3px); }
+.end-btn:active { transform: translateY(2px); }
+.end-btn.orange { background: #e67e22; }
+.end-btn.dark   { background: #4a1800; }
+
+/* Back */
+.back-btn {
+  position: fixed; top: 14px; left: 14px; z-index: 100;
+  background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50px; color: #fff;
+  font-size: 0.9rem; font-weight: 700; font-family: 'Nunito', sans-serif;
+  padding: 7px 14px 7px 10px; cursor: pointer;
+  text-decoration: none; display: flex; align-items: center; gap: 6px;
+  backdrop-filter: blur(4px); transition: background 0.2s;
+}
+.back-btn:hover { background: rgba(0,0,0,0.7); }
+
+/* Confetti */
+.confetti-piece {
+  position: fixed; border-radius: 2px;
+  animation: cfFall linear forwards;
+  z-index: 999; pointer-events: none;
+}
+@keyframes cfFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<a class="back-btn" href="../index.html">← Arcade</a>
+
+<!-- ══════════ START ══════════ -->
+<div class="screen" id="startScreen">
+  <h1>🔢 Number Dash!</h1>
+  <div class="num-preview">
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+  </div>
+  <p class="subtitle">Tap numbers 1 to 25 in order — as fast as you can!<br>Build number skills through speed & fun! ⚡</p>
+  <div class="start-hs" id="startHs">⏱️ Best Time: —</div>
+
+  <div class="level-label">Grid Size:</div>
+  <div class="level-cards">
+    <div class="level-card selected" data-level="easy">
+      <div class="level-icon">😊</div>
+      <div class="level-name">Easy</div>
+      <div class="level-desc">1–9 (3×3)</div>
+    </div>
+    <div class="level-card" data-level="medium">
+      <div class="level-icon">😄</div>
+      <div class="level-name">Medium</div>
+      <div class="level-desc">1–16 (4×4)</div>
+    </div>
+    <div class="level-card" data-level="hard">
+      <div class="level-icon">🤯</div>
+      <div class="level-name">Hard</div>
+      <div class="level-desc">1–25 (5×5)</div>
+    </div>
+  </div>
+
+  <button class="play-btn" id="playBtn">Ready, Set, Go! ⚡</button>
+</div>
+
+<!-- ══════════ GAME ══════════ -->
+<div class="screen hidden" id="gameScreen">
+  <div class="hud">
+    <div class="hud-block">
+      <div class="hud-val" style="color:#feca57" id="timerVal">0.0s</div>
+      <div class="hud-lbl">Time</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" style="color:#1dd1a1" id="progressVal">0 / 25</div>
+      <div class="hud-lbl">Found</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-val" style="color:#ff6b6b" id="errorsVal">0</div>
+      <div class="hud-lbl">Errors</div>
+    </div>
+  </div>
+
+  <div class="next-num" id="nextNum">Find: 1</div>
+
+  <div class="grid-wrap">
+    <div class="number-grid" id="numGrid"></div>
+  </div>
+</div>
+
+<!-- ══════════ END ══════════ -->
+<div class="screen hidden" id="endScreen">
+  <div class="end-emoji" id="endEmoji">⚡</div>
+  <h1 id="endTitle">Speedy!</h1>
+  <div class="end-time-big" id="endTimeBig">12.3 seconds</div>
+  <div class="new-hs" id="newHsBadge">🌟 New Record! 🌟</div>
+  <div class="end-stats">
+    <div class="end-stat">
+      <div class="end-stat-val" id="endNumbers">25</div>
+      <div class="end-stat-lbl">Numbers</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endErrors">0</div>
+      <div class="end-stat-lbl">Errors</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="endBest">—</div>
+      <div class="end-stat-lbl">Best Time</div>
+    </div>
+  </div>
+  <div class="end-btns">
+    <button class="end-btn orange" id="playAgainBtn">🔄 Play Again</button>
+    <button class="end-btn dark"   id="menuBtn">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  NUMBER DASH — Game Logic
+// ═══════════════════════════════════════════════════
+
+const LEVELS = {
+  easy:   { count: 9,  cols: 3 },
+  medium: { count: 16, cols: 4 },
+  hard:   { count: 25, cols: 5 },
+};
+
+let currentLevel = 'easy';
+let nextNumber, totalNumbers, errors;
+let startTime, timerRAF, gameActive = false;
+let highScores = {};
+
+function $(id) { return document.getElementById(id); }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ─── High scores (fastest time) ──────────────────
+function loadHS() {
+  try { highScores = JSON.parse(localStorage.getItem('numberdash_hs') || '{}'); } catch(e){ highScores={}; }
+  const best = highScores[currentLevel];
+  $('startHs').textContent = best ? `⏱️ Best: ${best.toFixed(1)}s (${currentLevel})` : '⏱️ Best Time: —';
+}
+function saveHS(level, t) {
+  const prev = highScores[level] || Infinity;
+  if (t < prev) { highScores[level] = Math.round(t * 10) / 10; localStorage.setItem('numberdash_hs', JSON.stringify(highScores)); return true; }
+  return false;
+}
+
+function showScreen(id) {
+  ['startScreen','gameScreen','endScreen'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+}
+
+// ─── Sound ───────────────────────────────────────
+let audioCtx;
+function ac() { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function playTap(num) {
+  try {
+    const c=ac(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);
+    o.frequency.value = 300 + num * 30;
+    g.gain.setValueAtTime(0.12,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.1);
+    o.start();o.stop(c.currentTime+0.1);
+  } catch(e){}
+}
+function playWrong() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.setValueAtTime(200,c.currentTime); o.frequency.exponentialRampToValueAtTime(120,c.currentTime+0.15); o.type='sawtooth'; g.gain.setValueAtTime(0.1,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.2); o.start();o.stop(c.currentTime+0.2); } catch(e){}
+}
+function playWin() {
+  try { const c=ac(); [523,659,784,1047].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f; g.gain.setValueAtTime(0.15,c.currentTime+i*0.12); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.12+0.28); o.start(c.currentTime+i*0.12);o.stop(c.currentTime+i*0.12+0.3); }); } catch(e){}
+}
+
+// ─── Start game ──────────────────────────────────
+function startGame() {
+  const cfg = LEVELS[currentLevel];
+  totalNumbers = cfg.count;
+  nextNumber = 1;
+  errors = 0;
+  gameActive = true;
+
+  // Build grid
+  const grid = $('numGrid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+
+  const nums = shuffle(Array.from({length: cfg.count}, (_, i) => i + 1));
+  nums.forEach(num => {
+    const cell = document.createElement('div');
+    cell.className = 'num-cell';
+    cell.textContent = num;
+    cell.dataset.num = num;
+    cell.addEventListener('click', () => tapNumber(cell, num));
+    grid.appendChild(cell);
+  });
+
+  $('nextNum').textContent = 'Find: 1';
+  $('progressVal').textContent = `0 / ${totalNumbers}`;
+  $('errorsVal').textContent = '0';
+  $('timerVal').textContent = '0.0s';
+  $('timerVal').classList.remove('timer-pulse');
+
+  showScreen('gameScreen');
+  startTime = performance.now();
+  updateTimer();
+}
+
+// ─── Timer ───────────────────────────────────────
+function updateTimer() {
+  if (!gameActive) return;
+  const elapsed = (performance.now() - startTime) / 1000;
+  $('timerVal').textContent = elapsed.toFixed(1) + 's';
+  timerRAF = requestAnimationFrame(updateTimer);
+}
+
+// ─── Tap number ──────────────────────────────────
+function tapNumber(cell, num) {
+  if (!gameActive) return;
+
+  if (num === nextNumber) {
+    // Correct!
+    cell.classList.add('done');
+    playTap(num);
+    nextNumber++;
+    $('progressVal').textContent = `${nextNumber - 1} / ${totalNumbers}`;
+    $('nextNum').textContent = nextNumber <= totalNumbers ? `Find: ${nextNumber}` : '🎉 Done!';
+
+    if (nextNumber > totalNumbers) {
+      endGame();
+    }
+  } else {
+    // Wrong
+    cell.classList.add('wrong');
+    errors++;
+    $('errorsVal').textContent = errors;
+    playWrong();
+    setTimeout(() => cell.classList.remove('wrong'), 400);
+  }
+}
+
+// ─── End game ────────────────────────────────────
+function endGame() {
+  gameActive = false;
+  cancelAnimationFrame(timerRAF);
+  const elapsed = (performance.now() - startTime) / 1000;
+  const time = Math.round(elapsed * 10) / 10;
+
+  playWin();
+  const isNew = saveHS(currentLevel, time);
+  loadHS();
+
+  // Rate performance
+  const cfg = LEVELS[currentLevel];
+  const perNum = time / cfg.count;
+  if (perNum < 0.8) {
+    $('endEmoji').textContent = '🏆'; $('endTitle').textContent = 'Lightning Fast!';
+  } else if (perNum < 1.5) {
+    $('endEmoji').textContent = '⚡'; $('endTitle').textContent = 'Speedy!';
+  } else {
+    $('endEmoji').textContent = '👍'; $('endTitle').textContent = 'Nice Try!';
+  }
+
+  $('endTimeBig').textContent = time.toFixed(1) + ' seconds';
+  $('endNumbers').textContent = totalNumbers;
+  $('endErrors').textContent = errors;
+  $('endBest').textContent = highScores[currentLevel] ? highScores[currentLevel].toFixed(1) + 's' : '—';
+  $('newHsBadge').style.display = isNew ? 'block' : 'none';
+
+  showScreen('endScreen');
+  if (perNum < 1.5) confetti();
+}
+
+// ─── Level selection ─────────────────────────────
+document.querySelectorAll('.level-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    currentLevel = card.dataset.level;
+    loadHS();
+  });
+});
+
+// ─── Buttons ─────────────────────────────────────
+$('playBtn').addEventListener('click', startGame);
+$('playAgainBtn').addEventListener('click', startGame);
+$('menuBtn').addEventListener('click', () => { showScreen('startScreen'); loadHS(); });
+
+// ─── Confetti ────────────────────────────────────
+function confetti() {
+  const colors = ['#feca57','#ff6b6b','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe','#f39c12'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${1.4+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;width:${6+Math.random()*9}px;height:${6+Math.random()*9}px;border-radius:${Math.random()>0.5?'50%':'3px'};`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// ─── Init ────────────────────────────────────────
+loadHS();
+</script>
+</body>
+</html>
