@@ -590,4 +590,502 @@ function drawSnakes() {
     const head = +headStr, tail = +tailStr;
     const hp = squarePos(head);
     const tp = squarePos(tail);
-    const [bodyCol, darkCol] = SNAKE_COLS[ci % SNAKE_COLS.leng
+    const [bodyCol, darkCol] = SNAKE_COLS[ci % SNAKE_COLS.length];
+    ci++;
+
+    const dx = tp.x - hp.x;
+    const dy = tp.y - hp.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len === 0) return;
+
+    // Perpendicular unit vector for S-curve control points
+    const px = -dy / len;
+    const py =  dx / len;
+    const amp = Math.min(CELL * 1.2, len * 0.35);
+
+    // Build a wavy path with multiple control points
+    const cp1x = hp.x + dx * 0.25 + px * amp;
+    const cp1y = hp.y + dy * 0.25 + py * amp;
+    const cp2x = hp.x + dx * 0.5  - px * amp;
+    const cp2y = hp.y + dy * 0.5  - py * amp;
+    const cp3x = hp.x + dx * 0.75 + px * amp * 0.6;
+    const cp3y = hp.y + dy * 0.75 + py * amp * 0.6;
+
+    const path = new Path2D();
+    path.moveTo(hp.x, hp.y);
+    path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, hp.x + dx * 0.5, hp.y + dy * 0.5);
+    path.bezierCurveTo(cp3x, cp3y, tp.x + (hp.x - tp.x) * 0.1, tp.y + (hp.y - tp.y) * 0.1, tp.x, tp.y);
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 6; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
+    ctx.strokeStyle = darkCol;
+    ctx.lineWidth = CELL * 0.34;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.stroke(path);
+    ctx.restore();
+
+    // Body
+    ctx.strokeStyle = bodyCol;
+    ctx.lineWidth = CELL * 0.28;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.stroke(path);
+
+    // Scale shimmer
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = CELL * 0.1;
+    ctx.stroke(path);
+
+    // Snake head circle
+    const hr = CELL * 0.2;
+    ctx.beginPath();
+    ctx.arc(hp.x, hp.y, hr, 0, Math.PI * 2);
+    ctx.fillStyle = darkCol;
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Eyes
+    const eo = hr * 0.38;
+    ctx.fillStyle = '#fff';
+    [[-eo, -eo * 0.5],[eo, -eo * 0.5]].forEach(([ex, ey]) => {
+      ctx.beginPath();
+      ctx.arc(hp.x + ex, hp.y + ey, hr * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(hp.x + ex + 1, hp.y + ey + 1, hr * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+    });
+
+    // Tongue
+    ctx.strokeStyle = '#ff2255'; ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hp.x, hp.y + hr * 0.9);
+    ctx.lineTo(hp.x, hp.y + hr * 1.5);
+    ctx.moveTo(hp.x, hp.y + hr * 1.5);
+    ctx.lineTo(hp.x - hr * 0.4, hp.y + hr * 2.0);
+    ctx.moveTo(hp.x, hp.y + hr * 1.5);
+    ctx.lineTo(hp.x + hr * 0.4, hp.y + hr * 2.0);
+    ctx.stroke();
+
+    // 🐍 emoji label at head
+    ctx.font = `${Math.max(10, CELL * 0.28)}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🐍', tp.x, tp.y);
+  });
+}
+
+function drawTokens() {
+  // Group players by position
+  const byPos = {};
+  players.forEach((p, i) => {
+    if (p.pos < 1) return;
+    if (!byPos[p.pos]) byPos[p.pos] = [];
+    byPos[p.pos].push(i);
+  });
+
+  Object.entries(byPos).forEach(([posStr, idxs]) => {
+    const pos = +posStr;
+    const center = squarePos(pos);
+    const n = idxs.length;
+    const r = Math.max(CELL * 0.14, 8);
+
+    idxs.forEach((pi, j) => {
+      let ox = 0, oy = 0;
+      if (n === 2) { ox = (j === 0 ? -1 : 1) * r * 0.9; }
+      else if (n >= 3) {
+        const angle = (j / n) * Math.PI * 2 - Math.PI / 2;
+        ox = Math.cos(angle) * r * 0.95;
+        oy = Math.sin(angle) * r * 0.95;
+      }
+      const tx = center.x + ox, ty = center.y + oy;
+
+      // Shadow
+      ctx.beginPath();
+      ctx.arc(tx + 1.5, ty + 1.5, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+
+      // Token body
+      ctx.beginPath();
+      ctx.arc(tx, ty, r, 0, Math.PI * 2);
+      ctx.fillStyle = players[pi].color; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+      // Number
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.max(7, r * 0.95)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(pi + 1, tx, ty);
+    });
+  });
+}
+
+function drawAll() {
+  drawBoard();
+  drawLadders();
+  drawSnakes();
+  drawTokens();
+}
+
+// ─── Dice drawing ──────────────────────────────────
+const DOTS = {
+  1:[[.5,.5]],
+  2:[[.25,.25],[.75,.75]],
+  3:[[.25,.25],[.5,.5],[.75,.75]],
+  4:[[.25,.25],[.75,.25],[.25,.75],[.75,.75]],
+  5:[[.25,.25],[.75,.25],[.5,.5],[.25,.75],[.75,.75]],
+  6:[[.25,.2],[.75,.2],[.25,.5],[.75,.5],[.25,.8],[.75,.8]],
+};
+function drawDiceFace(val) {
+  const s = dcanvas.width;
+  dctx.clearRect(0, 0, s, s);
+  // Background white (transparent — parent has white bg)
+  DOTS[val].forEach(([fx, fy]) => {
+    dctx.beginPath();
+    dctx.arc(s * fx, s * fy, s * 0.1, 0, Math.PI * 2);
+    dctx.fillStyle = '#2d3436';
+    dctx.fill();
+  });
+}
+
+// ─── Sound ─────────────────────────────────────────
+let audioCtx;
+function ac() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+function playStep() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=440+Math.random()*200; g.gain.setValueAtTime(0.07,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.06); o.start();o.stop(c.currentTime+0.06); }catch(e){}
+}
+function playSnake() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.setValueAtTime(440,c.currentTime); o.frequency.exponentialRampToValueAtTime(150,c.currentTime+0.5); o.type='sawtooth'; g.gain.setValueAtTime(0.12,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.6); o.start();o.stop(c.currentTime+0.6); }catch(e){}
+}
+function playLadder() {
+  try { const c=ac(); [523,659,784,1047].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f; g.gain.setValueAtTime(0.1,c.currentTime+i*0.08); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.08+0.18); o.start(c.currentTime+i*0.08);o.stop(c.currentTime+i*0.08+0.2); }); }catch(e){}
+}
+function playWin() {
+  try { const c=ac(); [523,659,784,1047,1175].forEach((f,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=f; g.gain.setValueAtTime(0.14,c.currentTime+i*0.12); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.12+0.28); o.start(c.currentTime+i*0.12);o.stop(c.currentTime+i*0.12+0.3); }); }catch(e){}
+}
+function playDiceRoll() {
+  try { const c=ac(),o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.type='triangle'; o.frequency.setValueAtTime(300,c.currentTime); o.frequency.exponentialRampToValueAtTime(600,c.currentTime+0.3); g.gain.setValueAtTime(0.1,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.35); o.start();o.stop(c.currentTime+0.35); }catch(e){}
+}
+
+// ─── Confetti ──────────────────────────────────────
+function confetti() {
+  const cols=['#feca57','#ff6b6b','#48dbfb','#1dd1a1','#ff9ff3','#a29bfe'];
+  for(let i=0;i<90;i++){
+    const el=document.createElement('div'); el.className='confetti-piece';
+    el.style.cssText=`left:${Math.random()*100}vw;background:${cols[~~(Math.random()*cols.length)]};animation-duration:${1.4+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;width:${6+Math.random()*9}px;height:${6+Math.random()*9}px;border-radius:${Math.random()>.5?'50%':'3px'};`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend',()=>el.remove());
+  }
+}
+
+// ─── Player HUD ────────────────────────────────────
+function buildHud() {
+  const hud = $('playerHud');
+  hud.innerHTML = '';
+  players.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'phud-card';
+    card.id = `phud-${i}`;
+    card.innerHTML = `
+      <div class="phud-token" style="background:${p.color}">${i+1}</div>
+      <div class="phud-name">${p.name}</div>
+      <div class="phud-pos" id="phud-pos-${i}">🏁</div>
+    `;
+    hud.appendChild(card);
+  });
+}
+function updateHud() {
+  players.forEach((p, i) => {
+    const card = $(`phud-${i}`);
+    if (!card) return;
+    card.className = 'phud-card' + (i === currentIdx && gameActive ? ' active' : '');
+    card.style.borderColor = i === currentIdx && gameActive ? p.color : '';
+    card.style.boxShadow   = i === currentIdx && gameActive ? `0 0 14px ${p.color}66` : '';
+    $(`phud-pos-${i}`).textContent = p.finished ? '✅' : p.pos === 0 ? '🏁' : `sq ${p.pos}`;
+  });
+}
+
+// ─── Turn UI ───────────────────────────────────────
+function updateTurnUI() {
+  const p = players[currentIdx];
+  $('turnName').textContent = `${p.isCpu ? '🤖 ' : ''}${p.name}`;
+  $('turnName').style.color = p.color;
+  $('turnSub').textContent  = p.isCpu ? 'CPU is thinking…' : 'Your turn! Roll the dice →';
+  $('rollBtn').disabled     = !gameActive || isAnimating || p.isCpu;
+}
+
+function setMsg(txt, type='') {
+  const bar = $('msgBar');
+  bar.textContent = txt;
+  bar.className = 'msg-bar' + (type ? ` ${type}-msg` : '');
+}
+
+// ─── Roll dice ─────────────────────────────────────
+async function rollDice() {
+  if (isAnimating || !gameActive) return;
+  isAnimating = true;
+  $('rollBtn').disabled = true;
+  playDiceRoll();
+
+  // Animate dice
+  let val = 1;
+  for (let i = 0; i < 12; i++) {
+    val = Math.floor(Math.random() * 6) + 1;
+    drawDiceFace(val);
+    await delay(50 + i * 8);
+  }
+  const roll = Math.floor(Math.random() * 6) + 1;
+  drawDiceFace(roll);
+
+  setMsg(`🎲 ${players[currentIdx].name} rolled a ${roll}!`);
+  await delay(400);
+  await movePlayer(currentIdx, roll);
+}
+
+// ─── Move player ───────────────────────────────────
+async function movePlayer(idx, roll) {
+  const p = players[idx];
+  const oldPos = p.pos;
+  let newPos = (p.pos === 0 ? 0 : p.pos) + roll;
+
+  // Bounce if overshoot
+  if (newPos > 100) {
+    newPos = 200 - newPos;
+  }
+
+  // Animate step by step
+  const start = p.pos === 0 ? 1 : p.pos;
+  const fwd   = p.pos === 0 ? roll : newPos >= p.pos ? newPos : 100;
+
+  // Forward steps
+  for (let sq = start; sq <= fwd; sq++) {
+    p.pos = sq;
+    updateHud();
+    drawAll();
+    playStep();
+    await delay(Math.max(80, 160 - fwd * 3));
+  }
+
+  // Bounce back
+  if (p.pos > newPos) {
+    await delay(200);
+    for (let sq = p.pos - 1; sq >= newPos; sq--) {
+      p.pos = sq;
+      updateHud();
+      drawAll();
+      playStep();
+      await delay(100);
+    }
+  }
+
+  p.pos = newPos;
+  updateHud();
+  drawAll();
+
+  await delay(300);
+
+  // Check snake / ladder
+  if (SNAKES[p.pos]) {
+    const dest = SNAKES[p.pos];
+    setMsg(`🐍 Oh no! ${p.name} got bitten! Sliding from ${p.pos} → ${dest}!`, 'snake');
+    playSnake();
+    await delay(700);
+    p.pos = dest;
+    updateHud();
+    drawAll();
+    await delay(400);
+  } else if (LADDERS[p.pos]) {
+    const dest = LADDERS[p.pos];
+    setMsg(`🪜 Woohoo! ${p.name} found a ladder! Climbing ${p.pos} → ${dest}!`, 'ladder');
+    playLadder();
+    await delay(700);
+    p.pos = dest;
+    updateHud();
+    drawAll();
+    await delay(400);
+  }
+
+  // Check win
+  if (p.pos >= 100) {
+    p.pos = 100;
+    p.finished = true;
+    p.rank = ++ranksGiven;
+    updateHud();
+    drawAll();
+    playWin();
+    confetti();
+
+    const activePlayers = players.filter(x => !x.finished);
+    if (activePlayers.length <= 1) {
+      // Game over — assign last rank
+      activePlayers.forEach(x => { x.finished = true; x.rank = ++ranksGiven; });
+      gameActive = false;
+      isAnimating = false;
+      await delay(800);
+      showEndScreen();
+      return;
+    } else {
+      setMsg(`🎉 ${p.name} reached 100 and finished! Others keep playing!`);
+      await delay(1000);
+    }
+  } else {
+    setMsg(`📍 ${p.name} is now on square ${p.pos}`);
+  }
+
+  isAnimating = false;
+  nextTurn();
+}
+
+// ─── Next turn ─────────────────────────────────────
+function nextTurn() {
+  if (!gameActive) return;
+  // Skip finished players
+  let tries = 0;
+  do {
+    currentIdx = (currentIdx + 1) % players.length;
+    tries++;
+  } while (players[currentIdx].finished && tries <= players.length);
+
+  updateTurnUI();
+  updateHud();
+
+  if (players[currentIdx].isCpu) {
+    setTimeout(rollDice, 900);
+  }
+}
+
+// ─── End screen ────────────────────────────────────
+function showEndScreen() {
+  const winner = players.find(p => p.rank === 1);
+  $('endEmoji').textContent = '🏆';
+  $('endTitle').textContent = `${winner.name} Wins!`;
+  $('endTitle').style.color = winner.color;
+  $('endWinner').textContent = '🎉 Congratulations! 🎉';
+
+  const fp = $('finalPositions');
+  fp.innerHTML = '';
+  const ranked = [...players].sort((a,b) => a.rank - b.rank);
+  const medals = ['🥇','🥈','🥉','4️⃣'];
+  ranked.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'final-pos-card';
+    card.innerHTML = `
+      <div class="fp-token" style="background:${p.color}">${players.indexOf(p)+1}</div>
+      <div class="fp-info">
+        <div class="fp-name">${medals[i]} ${p.name}</div>
+        <div class="fp-rank">${i===0?'Winner!':i===1?'Runner-up':i===2?'3rd place':'4th place'} · sq ${p.pos}</div>
+      </div>
+    `;
+    fp.appendChild(card);
+  });
+  showScreen('endScreen');
+}
+
+// ─── Start Game ────────────────────────────────────
+function startGame() {
+  // Apply chosen board layout
+  if (selectedBoard === 'random') {
+    const b = generateRandomBoard();
+    SNAKES  = b.snakes;
+    LADDERS = b.ladders;
+  } else {
+    SNAKES  = { ...BOARD_PRESETS[selectedBoard].snakes };
+    LADDERS = { ...BOARD_PRESETS[selectedBoard].ladders };
+  }
+
+  // Read names from inputs
+  players.forEach((p, i) => {
+    const inp = document.querySelector(`#pcard-${i} .pcard-name`);
+    if (inp) p.name = inp.value.trim() || P_NAMES[i];
+  });
+
+  // Reset state
+  players.forEach(p => { p.pos = 0; p.finished = false; p.rank = 0; });
+  currentIdx = -1;
+  ranksGiven = 0;
+  gameActive = true;
+  isAnimating = false;
+
+  resizeBoard();
+  buildHud();
+  showScreen('gameScreen');
+  drawDiceFace(1);
+  drawAll();
+  updateHud();
+  setMsg('🎮 Game started! Player 1 goes first!');
+
+  // Trigger first turn
+  currentIdx = -1;
+  nextTurn();
+}
+
+// ─── Player card UI ────────────────────────────────
+function buildPlayerCards() {
+  const container = $('playerCards');
+  container.innerHTML = '';
+  players.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'pcard'; card.id = `pcard-${i}`;
+    // P1 is always Human and can't be toggled
+    const toggleHtml = i === 0
+      ? `<span class="pcard-toggle" style="opacity:0.5;cursor:default">👤 Human</span>`
+      : `<button class="pcard-toggle ${p.isCpu?'cpu':''}" data-idx="${i}">${p.isCpu?'🤖 CPU':'👤 Human'}</button>`;
+    card.innerHTML = `
+      <div class="pcard-num" style="background:${p.color};width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center">${i+1}</div>
+      <input class="pcard-name" value="${p.name}" maxlength="12" placeholder="${P_NAMES[i]}">
+      ${toggleHtml}
+    `;
+    container.appendChild(card);
+  });
+
+  // Auto-select on focus
+  container.querySelectorAll('.pcard-name').forEach(inp => {
+    inp.addEventListener('focus', () => inp.select());
+  });
+  // Toggle CPU (only P2)
+  container.querySelectorAll('.pcard-toggle[data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx;
+      players[idx].isCpu = !players[idx].isCpu;
+      btn.className = 'pcard-toggle' + (players[idx].isCpu ? ' cpu' : '');
+      btn.textContent = players[idx].isCpu ? '🤖 CPU' : '👤 Human';
+    });
+  });
+}
+
+function initPlayers() {
+  players = [
+    { name: P_NAMES[0], isCpu: false, color: P_COLORS[0], dark: P_DARK[0], pos: 0, finished: false, rank: 0 },
+    { name: P_NAMES[1], isCpu: true,  color: P_COLORS[1], dark: P_DARK[1], pos: 0, finished: false, rank: 0 },
+  ];
+  buildPlayerCards();
+}
+
+$('playBtn').addEventListener('click', startGame);
+$('rollBtn').addEventListener('click', rollDice);
+$('playAgainBtn').addEventListener('click', () => {
+  initPlayers();
+  showScreen('startScreen');
+});
+$('menuBtn').addEventListener('click', () => {
+  initPlayers();
+  showScreen('startScreen');
+});
+
+window.addEventListener('resize', () => {
+  if (!$('gameScreen').classList.contains('hidden')) {
+    resizeBoard();
+    drawAll();
+  }
+});
+
+// ─── Init ──────────────────────────────────────────
+initPlayers();
+drawDiceFace(1);
+</script>
+</body>
+</html>
